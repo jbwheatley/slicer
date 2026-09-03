@@ -1,0 +1,16 @@
+--- base/src/main/scala/spec/implicitclasses/ImplicitClasses.scala
+package spec.implicitclasses
+
+object StringSyntax {
+  implicit class ImplicitClassOnString(private val value: String) extends AnyVal {}
+
+  implicit class ImplicitClassOnList[A](values: List[A]) {}
+}
+
+class ValueClassWrapper(val underlying: Long) extends AnyVal {
+  def doubled: Long = underlying * 2
+}
+
+object CallsValueClass {
+  def call(value: Long): Long = new ValueClassWrapper(value).doubled
+}

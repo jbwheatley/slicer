@@ -1,0 +1,22 @@
+--- base/src/main/scala/spec/opaques/Opaque.scala
+package spec.opaques
+
+opaque type OpaqueType = Long
+
+object OpaqueType {
+
+  def zero: OpaqueType = 0L
+
+  extension (value: OpaqueType) {
+
+    def plus(other: OpaqueType): OpaqueType = value + other
+
+  }
+}
+
+object CallsOpaqueType {
+  import OpaqueType.*
+
+  def folds(values: List[OpaqueType]): OpaqueType = values.foldLeft(OpaqueType.zero)(_ plus _)
+
+}

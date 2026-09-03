@@ -1,0 +1,10 @@
+--- base/src/main/scala/spec/toplevel/Toplevel.scala
+package spec.toplevel
+
+extension (context: StringContext) {
+  def interpolator(args: Any*): String = context.s(args*).toUpperCase
+}
+
+object CallsInterpolator {
+  def calls(title: String): String = interpolator"interpolated $title"
+}

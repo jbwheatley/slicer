@@ -1,0 +1,32 @@
+--- base/src/main/scala/spec/macros/Macros.scala
+package spec.macros
+
+import scala.language.experimental.macros
+
+object StringMacros {
+
+  def reflectedLabel: String = macro MacroImplementations.reflectedLabelImpl
+}
+
+object CallsMacros {
+
+  def callsReflectedLabel: String = StringMacros.reflectedLabel
+}
+
+--- macros/src/main/scala/spec/macros/MacroImplementations.scala
+package spec.macros
+
+import scala.reflect.macros.blackbox
+
+object ReflectedTarget {
+  val label: String = "reflected"
+}
+
+object MacroImplementations {
+
+  def reflectedLabelImpl(c: blackbox.Context): c.Expr[String] = {
+    import c.universe._
+    val target = c.mirror.staticModule("spec.macros.ReflectedTarget")
+    c.Expr[String](q"$target.label")
+  }
+}

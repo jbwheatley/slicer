@@ -1,0 +1,28 @@
+package build
+
+import mill.*
+import mill.scalalib.*
+
+trait Spec extends ScalaModule {
+  def scalaVersion = "3.8.4"
+}
+
+object macros extends Spec
+
+object base extends Spec {
+  def moduleDeps = Seq(macros)
+}
+
+object external extends Spec {
+  def moduleDeps = Seq(base)
+  def mvnDeps = Seq(mvn"org.typelevel::cats-core:2.13.0")
+}
+
+object configured extends Spec {
+  def scalacOptions = Seq("-Xkind-projector")
+  def compileMvnDeps = Seq(mvn"com.lihaoyi::sourcecode:0.4.2")
+}
+
+object entry extends Spec {
+  def moduleDeps = Seq(base, external)
+}

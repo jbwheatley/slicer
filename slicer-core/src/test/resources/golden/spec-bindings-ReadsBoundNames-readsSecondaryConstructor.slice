@@ -1,0 +1,13 @@
+--- base/src/main/scala/spec/bindings/Bindings.scala
+package spec.bindings
+
+class TakesTwoParameters(val label: String, val count: Int) {
+  def this(label: String) = this(label, 1)
+
+  def describe: String = s"$label:$count"
+}
+
+object ReadsBoundNames {
+
+  def readsSecondaryConstructor: String = new TakesTwoParameters("only").describe
+}

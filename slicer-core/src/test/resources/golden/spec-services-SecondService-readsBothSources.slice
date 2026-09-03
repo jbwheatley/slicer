@@ -1,0 +1,51 @@
+--- base/src/main/scala/spec/implementations/Implementations.scala
+package spec.implementations
+
+trait AbstractSource {
+  def rows: List[Map[String, String]]
+}
+
+class SourceImplementation extends AbstractSource {
+  private val storedRows = List(Map("key" -> "1", "value" -> "one"))
+
+  def rows: List[Map[String, String]] = storedRows
+}
+
+trait AbstractWithTwoMembers {
+  // slice: 2 impls kept (DelegatingImplementation, DirectImplementation) — the wiring is outside the slice
+  def calledMember(key: Long): Option[String]
+  // slice: 2 impls kept (DelegatingImplementation, DirectImplementation) — the wiring is outside the slice
+  def uncalledMember(): List[String]
+}
+
+class DirectImplementation(source: AbstractSource) extends AbstractWithTwoMembers {
+  // slice: one of 2 impls of AbstractWithTwoMembers.calledMember kept
+  def calledMember(key: Long): Option[String] = source.rows.find(_("key") == key.toString).map(toValue)
+
+  // slice: one of 2 impls of AbstractWithTwoMembers.uncalledMember kept
+  def uncalledMember(): List[String] = source.rows.map(toValue)
+
+  private def toValue(row: Map[String, String]): String = row("value")
+}
+
+class DelegatingImplementation(underlying: AbstractWithTwoMembers) extends AbstractWithTwoMembers {
+  private val cachedValues = scala.collection.mutable.Map.empty[Long, Option[String]]
+
+  // slice: one of 2 impls of AbstractWithTwoMembers.calledMember kept
+  def calledMember(key: Long): Option[String] = cachedValues.getOrElseUpdate(key, underlying.calledMember(key))
+
+  // slice: one of 2 impls of AbstractWithTwoMembers.uncalledMember kept
+  def uncalledMember(): List[String] = underlying.uncalledMember()
+}
+
+--- entry/src/main/scala/spec/services/Services.scala
+package spec.services
+
+import spec.implementations.AbstractWithTwoMembers
+
+class SecondService(source: AbstractWithTwoMembers, other: AbstractWithTwoMembers) {
+  def readsBothSources(key: Long): Option[String] =
+    source.calledMember(key).map(value => joins(other.uncalledMember(), value))
+
+  private def joins(values: List[String], value: String): String = (value :: values).mkString(",")
+}

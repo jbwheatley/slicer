@@ -1,0 +1,14 @@
+--- base/src/main/scala/spec/bindings/Bindings.scala
+package spec.bindings
+
+object BoundNames {
+
+  val (leftOfPair, rightOfPair) = (3, 4)
+
+}
+
+object ReadsBoundNames {
+
+  def readsLeftOfPair: Int = BoundNames.leftOfPair
+
+}

@@ -1,0 +1,17 @@
+package build
+
+import mill.*
+import mill.scalalib.*
+import mill.scalajslib.*
+
+trait Spec extends ScalaJSModule {
+  def scalaVersion = "3.8.4"
+  def scalaJSVersion = "1.22.0"
+}
+
+object base extends Spec
+
+object external extends Spec {
+  def moduleDeps = Seq(base)
+  def mvnDeps = Seq(mvn"org.typelevel::cats-core::2.13.0")
+}

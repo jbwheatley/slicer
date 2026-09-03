@@ -1,0 +1,28 @@
+--- base/src/main/scala/spec/macros/Macros.scala
+package spec.macros
+
+import scala.language.experimental.macros
+
+object StringMacros {
+  def describe(value: String): String = macro MacroImplementations.describeImpl
+
+}
+
+object CallsMacros {
+  def callsDescribe: String = StringMacros.describe("hello")
+
+}
+
+--- macros/src/main/scala/spec/macros/MacroImplementations.scala
+package spec.macros
+
+import scala.reflect.macros.blackbox
+
+object MacroImplementations {
+
+  def describeImpl(c: blackbox.Context)(value: c.Expr[String]): c.Expr[String] = {
+    import c.universe._
+    c.Expr[String](q""""described:" + $value""")
+  }
+
+}

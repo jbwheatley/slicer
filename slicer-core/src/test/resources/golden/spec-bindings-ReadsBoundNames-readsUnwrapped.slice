@@ -1,0 +1,13 @@
+--- base/src/main/scala/spec/bindings/Bindings.scala
+package spec.bindings
+
+object BoundNames {
+
+  val Some(unwrapped) = Option("bound"): @unchecked
+}
+
+object ReadsBoundNames {
+
+  def readsUnwrapped: String = BoundNames.unwrapped
+
+}

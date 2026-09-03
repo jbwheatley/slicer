@@ -1,0 +1,11 @@
+--- base/src/main/scala/spec/bindings/Bindings.scala
+package spec.bindings
+
+trait DeclaresMutableMember {
+  var declaredVar: Int
+  def readsDeclaredVar: Int = declaredVar
+}
+
+class FixesMutableMember extends DeclaresMutableMember {
+  var declaredVar: Int = 1
+}

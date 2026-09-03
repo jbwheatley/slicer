@@ -1,0 +1,11 @@
+--- base/src/main/scala/spec/opaques/Opaque.scala
+package spec.opaques
+
+extension (value: String) {
+  def usedExtensionMethod: String = value.toUpperCase + "!"
+
+}
+
+object CallsExtensionMethod {
+  def calls(value: String): String = value.usedExtensionMethod
+}

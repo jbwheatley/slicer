@@ -1,0 +1,11 @@
+package build
+
+import mill.*
+import mill.scalalib.*
+import slicer.mill.SlicerModule
+
+object `package` extends SlicerModule {
+  def scalaVersion = "3.3.6"
+  def sources = Task.Sources("src/main/scala")
+  def mvnDeps = Seq(mvn"org.typelevel::cats-core:2.13.0")
+}

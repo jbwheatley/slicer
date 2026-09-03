@@ -1,0 +1,18 @@
+--- base/src/main/scala/spec/types/Types.scala
+package spec.types
+
+trait HasAbstractTypeMember {
+  type Key
+  def get(key: Key): String
+}
+
+object BindsAbstractTypeMember extends HasAbstractTypeMember {
+  type Key = String
+  def get(key: Key): String = key.reverse
+}
+
+object CallsRefinedType {
+  type RefinedType = HasAbstractTypeMember { type Key = String }
+
+  def readsRefined(value: RefinedType, key: String): String = value.get(key)
+}

@@ -1,0 +1,25 @@
+--- base/src/main/scala/spec/implicitclasses/ImplicitClasses.scala
+package spec.implicitclasses
+
+object StringSyntax {
+  implicit class ImplicitClassOnString(private val value: String) extends AnyVal {
+    def shouted: String = value.toUpperCase + "!"
+
+  }
+
+  implicit class ImplicitClassOnList[A](values: List[A]) {}
+}
+
+--- entry/src/main/scala/spec/entry/Handler.scala
+package spec.entry
+
+import spec.implicitclasses.StringSyntax._
+
+case class InputValue(path: String, key: Long)
+case class ResultValue(code: Int, body: String)
+
+class Handler() {
+
+  def handlesWithImplicitClass(input: InputValue): ResultValue = ResultValue(200, input.path.shouted)
+
+}

@@ -1,0 +1,21 @@
+--- base/src/main/scala/spec/implicits/Implicits.scala
+package spec.implicits
+
+trait TypeClass[A] {
+  def render(a: A): String
+}
+
+case class HasImplicitsInCompanion(code: String)
+
+object HasImplicitsInCompanion {
+  implicit val typeClassForCompanion: TypeClass[HasImplicitsInCompanion] = new TypeClass[HasImplicitsInCompanion] {
+    def render(a: HasImplicitsInCompanion): String = s"companion:${a.code}"
+  }
+
+}
+
+object CallsImplicitsInCompanionScope {
+  def rendersFromCompanion(value: HasImplicitsInCompanion): String =
+    implicitly[TypeClass[HasImplicitsInCompanion]].render(value)
+
+}

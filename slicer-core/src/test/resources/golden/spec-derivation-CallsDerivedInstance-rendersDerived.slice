@@ -1,0 +1,35 @@
+--- base/src/main/scala/spec/derivation/Derivation.scala
+package spec.derivation
+
+import scala.deriving.Mirror
+
+trait DerivableTypeClass[A] {
+  def label(a: A): String
+}
+
+object DerivableTypeClass {
+  given DerivableTypeClass[Int] = value => s"int:$value"
+  given DerivableTypeClass[String] = value => s"str:$value"
+
+  def of[A](using instance: DerivableTypeClass[A]): DerivableTypeClass[A] = instance
+
+  def derived[A]: DerivableTypeClass[A] = a => a.toString
+}
+
+case class DerivesTypeClass(name: String) derives DerivableTypeClass
+
+object CallsDerivedInstance {
+  def rendersDerived(value: DerivesTypeClass): String = DerivableTypeClass.of[DerivesTypeClass].label(value)
+
+}
+
+--- entry/src/main/scala/spec/entry/Collisions.scala
+package spec.entry
+
+trait DerivableTypeClass[A] {
+  def label(a: A): String
+}
+
+object DerivableTypeClass {
+  given DerivableTypeClass[Boolean] = value => if (value) "yes" else "no"
+}

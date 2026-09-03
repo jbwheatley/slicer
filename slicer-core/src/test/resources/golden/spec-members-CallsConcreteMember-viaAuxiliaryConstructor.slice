@@ -1,0 +1,24 @@
+--- base/src/main/scala/spec/members/Members.scala
+package spec.members
+
+import scala.annotation.targetName
+
+trait AbstractAndConcrete {
+  // slice: 2 impls kept (ImplementsAsCaseClass, OverridesConcreteMember) — the wiring is outside the slice
+  def abstractMember: String
+  def concreteMember: String = abstractMember + " (concrete)"
+}
+
+case class ImplementsAsCaseClass(abstractMember: String) extends AbstractAndConcrete
+
+class OverridesConcreteMember(val abstractMember: String, val page: Int) extends AbstractAndConcrete {
+  def this(abstractMember: String) = this(abstractMember, 1)
+
+  override def concreteMember: String = s"$abstractMember @ $page"
+}
+
+object CallsConcreteMember {
+  def viaTrait(value: AbstractAndConcrete): String = value.concreteMember
+
+  def viaAuxiliaryConstructor: String = viaTrait(new OverridesConcreteMember("c"))
+}

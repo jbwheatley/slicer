@@ -1,0 +1,28 @@
+--- base/src/main/scala/spec/implicits/Implicits.scala
+package spec.implicits
+
+trait TypeClass[A] {
+  def render(a: A): String
+}
+
+object TypeClass {
+  implicit val typeClassForInt: TypeClass[Int] = new TypeClass[Int] {
+    def render(a: Int): String = a.toString
+  }
+
+  implicit val typeClassForString: TypeClass[String] = new TypeClass[String] {
+    def render(a: String): String = a
+  }
+
+  implicit def typeClassForPair[A, B](implicit left: TypeClass[A], right: TypeClass[B]): TypeClass[(A, B)] =
+    new TypeClass[(A, B)] {
+      def render(a: (A, B)): String = s"(${left.render(a._1)}, ${right.render(a._2)})"
+    }
+
+  def renderWithContextBound[A: TypeClass](a: A): String = implicitly[TypeClass[A]].render(a)
+}
+
+object CallsTypeClass {
+
+  def rendersPair(pair: (Int, String)): String = TypeClass.renderWithContextBound(pair)
+}

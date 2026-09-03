@@ -1,0 +1,24 @@
+--- base/src/main/scala/spec/givens/Givens.scala
+package spec.givens
+
+trait ContextParameter {
+  def value: String
+}
+
+object CallsContextFunction {
+  type ContextFunction[A] = ContextParameter ?=> A
+
+  def readsContext: ContextFunction[String] = summon[ContextParameter].value
+
+  def runsWithContext[A](context: ContextParameter)(body: ContextFunction[A]): A = body(using context)
+
+  def callsWithAnonymousImplementation: String = runsWithContext(new ContextParameter { def value = "ada" })(readsContext)
+}
+
+given givenConversion: Conversion[String, Long] = _.length
+
+object OldStyleImplicits {
+
+  implicit def implicitConversion(value: Int): String = value.toString
+
+}

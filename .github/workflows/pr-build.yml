@@ -1,0 +1,86 @@
+name: PR Build
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 27
+          cache: sbt
+      - uses: sbt/setup-sbt@v1 #https://eed3si9n.com/setup-sbt/
+      - name: Check formatting, headers and scalafix rules
+        run: sbt lintCheck
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 27
+          cache: sbt
+      - uses: sbt/setup-sbt@v1 #https://eed3si9n.com/setup-sbt/
+      - name: Setup coursier # tests shell out to `cs fetch` for compiler classpaths
+        uses: coursier/setup-action@v1
+      - name: Compile and run every suite
+        run: sbt testCheck
+
+  example:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+      - name: Publish the plugins locally for the example project
+        run: sbt publishLocal
+      - name: Build the example project with sbt
+        run: sbt compile
+        working-directory: example
+      - name: Build the example project with mill
+        run: ./mill compile
+        working-directory: example
+
+  corpus-slices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+      - name: Setup coursier
+        uses: coursier/setup-action@v1
+      - name: Compile a standalone slice of every corpus definition
+        run: sbt corpusCheck/checkCorpusSlices

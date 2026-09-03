@@ -1,0 +1,13 @@
+--- base/src/main/scala/spec/bindings/Bindings.scala
+package spec.bindings
+
+enum Colour {
+  case Red, Green
+  case Blue
+}
+
+object ReadsBoundNames {
+
+  def readsRepeatedCase: Colour = Colour.Green
+
+}

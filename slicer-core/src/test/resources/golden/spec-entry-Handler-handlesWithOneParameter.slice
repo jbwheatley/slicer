@@ -1,0 +1,111 @@
+--- base/src/main/scala/spec/givens/Givens.scala
+package spec.givens
+
+trait TypeClass[A] {
+  def render(a: A): String
+}
+
+object TypeClass {
+  given typeClassForInt: TypeClass[Int] = value => value.toString
+
+  given typeClassForString: TypeClass[String] = identity
+
+  given typeClassForPair[A, B](using left: TypeClass[A], right: TypeClass[B]): TypeClass[(A, B)] =
+    pair => s"(${left.render(pair._1)}, ${right.render(pair._2)})"
+
+  def renderWithContextBound[A: TypeClass](a: A): String = summon[TypeClass[A]].render(a)
+}
+
+object CallsTypeClass {
+
+  def rendersPair(pair: (Int, String)): String = TypeClass.renderWithContextBound(pair)
+}
+
+given givenConversion: Conversion[String, Long] = _.length
+
+object OldStyleImplicits {
+
+  implicit def implicitConversion(value: Int): String = value.toString
+
+}
+
+--- base/src/main/scala/spec/implementations/Implementations.scala
+package spec.implementations
+
+trait AbstractSource {
+  def rows: List[Map[String, String]]
+}
+
+class SourceImplementation extends AbstractSource {
+  private val storedRows = List(Map("key" -> "1", "value" -> "one"))
+
+  def rows: List[Map[String, String]] = storedRows
+}
+
+trait AbstractWithTwoMembers {
+  // slice: 2 impls kept (DelegatingImplementation, DirectImplementation) — the wiring is outside the slice
+  def calledMember(key: Long): Option[String]
+
+}
+
+class DirectImplementation(source: AbstractSource) extends AbstractWithTwoMembers {
+  // slice: one of 2 impls of AbstractWithTwoMembers.calledMember kept
+  def calledMember(key: Long): Option[String] = source.rows.find(_("key") == key.toString).map(toValue)
+
+  private def toValue(row: Map[String, String]): String = row("value")
+}
+
+class DelegatingImplementation(underlying: AbstractWithTwoMembers) extends AbstractWithTwoMembers {
+  private val cachedValues = scala.collection.mutable.Map.empty[Long, Option[String]]
+
+  // slice: one of 2 impls of AbstractWithTwoMembers.calledMember kept
+  def calledMember(key: Long): Option[String] = cachedValues.getOrElseUpdate(key, underlying.calledMember(key))
+
+}
+
+--- base/src/main/scala/spec/members/Members.scala
+package spec.members
+
+import scala.annotation.targetName
+
+object OverloadedMembers {
+
+  def overloaded(value: String): String = value
+
+}
+
+--- entry/src/main/scala/spec/entry/Handler.scala
+package spec.entry
+
+import spec.givens.{CallsTypeClass, TypeClass}
+import spec.services.{FirstService, ServiceView}
+
+case class InputValue(path: String, key: Long)
+case class ResultValue(code: Int, body: String)
+
+class Handler(first: FirstService) {
+
+  def handlesWithOneParameter(input: InputValue): ResultValue =
+    first.reachedFromOneCaller(input.key) match {
+      case Some(view) => ResultValue(200, renders(view))
+      case None       => ResultValue(404, "missing")
+    }
+
+  private def renders(view: ServiceView): String =
+    CallsTypeClass.rendersPair((view.key.toInt, view.rendered)) + summon[TypeClass[String]].render(view.value)
+}
+
+--- entry/src/main/scala/spec/services/Services.scala
+package spec.services
+
+import spec.implementations.AbstractWithTwoMembers
+import spec.members.OverloadedMembers
+
+class FirstService(source: AbstractWithTwoMembers) {
+  // reached from Handler.handlesWithOneParameter
+  def reachedFromOneCaller(key: Long): Option[ServiceView] =
+    source.calledMember(key).map(value => ServiceView(key, value, OverloadedMembers.overloaded(value)))
+
+}
+
+case class ServiceView(key: Long, value: String, rendered: String)

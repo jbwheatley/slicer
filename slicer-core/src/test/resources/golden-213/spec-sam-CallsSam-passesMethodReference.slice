@@ -1,0 +1,18 @@
+--- base/src/main/scala/spec/sam/Sam.scala
+package spec.sam
+
+trait SingleAbstractMethod {
+  def transform(value: String): String
+}
+
+object BuildsFromLambda {
+  val fromLambda: SingleAbstractMethod = value => value.trim
+
+}
+
+object CallsSam {
+
+  def acceptsFunction(f: String => String, value: String): String = f(value)
+
+  def passesMethodReference(value: String): String = acceptsFunction(BuildsFromLambda.fromLambda.transform, value)
+}

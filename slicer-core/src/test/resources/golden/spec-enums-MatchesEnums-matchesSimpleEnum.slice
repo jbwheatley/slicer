@@ -1,0 +1,18 @@
+--- base/src/main/scala/spec/enums/Enums.scala
+package spec.enums
+
+enum SimpleEnum {
+  case WithoutParameters
+  case WithOneParameter(reason: String)
+  case WithTwoParameters(at: Long, reason: String)
+}
+
+object MatchesEnums {
+
+  def matchesSimpleEnum(value: SimpleEnum): String = value match {
+    case SimpleEnum.WithoutParameters            => "none"
+    case SimpleEnum.WithOneParameter(reason)     => s"one: $reason"
+    case SimpleEnum.WithTwoParameters(at, reason) => s"two: $at $reason"
+  }
+
+}

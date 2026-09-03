@@ -1,0 +1,9 @@
+package build
+
+import mill.*
+import mill.javalib.DepSyntax
+import mill.meta.MillBuildRootModule
+
+object `package` extends MillBuildRootModule {
+  def mvnDeps = Seq(mvn"io.github.jbwheatley::slicer-mill::0.0.0-SNAPSHOT")
+}

@@ -1,0 +1,20 @@
+--- base/src/main/scala/spec/implicits/Implicits.scala
+package spec.implicits
+
+trait PriorityTypeClass[A] {
+  def encode(a: A): String
+}
+
+trait LowPriorityInstances {
+  implicit def fallbackInstance[A]: PriorityTypeClass[A] = new PriorityTypeClass[A] {
+    def encode(a: A): String = a.toString
+  }
+}
+
+object PriorityTypeClass extends LowPriorityInstances {}
+
+object CallsPriorityTypeClass {
+  def encodeWithImplicit[A](a: A)(implicit instance: PriorityTypeClass[A]): String = instance.encode(a)
+
+  def picksFallbackInstance: String = encodeWithImplicit(1.5)
+}

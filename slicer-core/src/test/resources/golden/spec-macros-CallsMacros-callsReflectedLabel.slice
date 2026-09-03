@@ -1,0 +1,30 @@
+--- base/src/main/scala/spec/macros/Macros.scala
+package spec.macros
+
+object StringMacros {
+
+  inline def reflectedLabel: String = ${ MacroImplementations.reflectedLabelImpl }
+}
+
+object CallsMacros {
+
+  def callsReflectedLabel: String = StringMacros.reflectedLabel
+}
+
+--- macros/src/main/scala/spec/macros/MacroImplementations.scala
+package spec.macros
+
+import scala.quoted.*
+
+object ReflectedTarget {
+  val label: String = "reflected"
+}
+
+object MacroImplementations {
+
+  def reflectedLabelImpl(using quotes: Quotes): Expr[String] = {
+    import quotes.reflect.*
+    val target = Symbol.requiredModule("spec.macros.ReflectedTarget")
+    Ref(target).select(target.declaredField("label")).asExprOf[String]
+  }
+}

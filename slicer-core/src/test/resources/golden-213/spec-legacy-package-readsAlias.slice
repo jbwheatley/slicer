@@ -1,0 +1,8 @@
+--- base/src/main/scala/spec/legacy/package.scala
+package spec
+
+package object legacy {
+  type LegacyAlias = Map[String, String]
+
+  def readsAlias(entries: LegacyAlias): String = entries.keys.toList.sorted.mkString(",")
+}

@@ -1,0 +1,22 @@
+--- external/src/main/scala/spec/external/External.scala
+package spec.external
+
+import cats.Semigroup
+import cats.data.NonEmptyList
+import cats.data.Validated
+import cats.syntax.all._
+
+case class HasLibraryImplicit(name: String, parts: List[String])
+
+object HasLibraryImplicit {
+  implicit val semigroupForLibraryValue: Semigroup[HasLibraryImplicit] =
+    new Semigroup[HasLibraryImplicit] {
+      def combine(left: HasLibraryImplicit, right: HasLibraryImplicit): HasLibraryImplicit =
+        HasLibraryImplicit(left.name, left.parts ++ right.parts)
+    }
+}
+
+object CallsLibrary {
+
+  def reducesWithLibraryImplicit(values: NonEmptyList[HasLibraryImplicit]): HasLibraryImplicit = values.reduce
+}

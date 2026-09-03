@@ -1,0 +1,24 @@
+--- base/src/main/scala/spec/macros/Macros.scala
+package spec.macros
+
+object StringMacros {
+  inline def describe(inline value: String): String = ${ MacroImplementations.describeImpl('value) }
+
+}
+
+object CallsMacros {
+  def callsDescribe: String = StringMacros.describe("hello")
+
+}
+
+--- macros/src/main/scala/spec/macros/MacroImplementations.scala
+package spec.macros
+
+import scala.quoted.*
+
+object MacroImplementations {
+
+  def describeImpl(value: Expr[String])(using Quotes): Expr[String] =
+    '{ "described:" + $value }
+
+}

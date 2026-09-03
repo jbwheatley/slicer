@@ -1,0 +1,16 @@
+--- base/src/main/scala/spec/toplevel/Toplevel.scala
+package spec.toplevel
+
+class HasUnapplyInCompanion[A](val value: A) {}
+
+object HasUnapplyInCompanion {
+  def unapply[A](value: HasUnapplyInCompanion[A]): Option[A] = Some(value.value)
+
+}
+
+object CallsUnapply {
+  def matchesWithUnapply(wrapper: HasUnapplyInCompanion[String]): String = wrapper match {
+    case HasUnapplyInCompanion(value) => value
+  }
+
+}
