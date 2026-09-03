@@ -40,6 +40,8 @@ jobs:
       - uses: sbt/setup-sbt@v1 #https://eed3si9n.com/setup-sbt/
       - name: Setup coursier # tests shell out to `cs fetch` for compiler classpaths
         uses: coursier/setup-action@v1
+      - name: Build every corpus # ahead of the suites, so no mill daemon starts while they run
+        run: sbt buildCorpuses
       - name: Compile and run every suite
         run: sbt testCheck
 

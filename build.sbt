@@ -110,8 +110,8 @@ inThisBuild(
     buildCorpuses := Def.uncached(
       compileCorpuses(
         (ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test",
-        sbtCorpuses,
-        millCorpuses,
+        sbtCorpuses ++ platformCorpuses,
+        millCorpuses ++ platformCorpuses,
         streams.value.log,
         rebuild = true
       )
