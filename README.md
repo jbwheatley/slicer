@@ -144,7 +144,7 @@ With this option enabled, the produced slice would keep `init` and any other fie
 
 ### Known limitations
 
-- If a Java class is called into, the entire class is included in the slice, as there is no semanticdb for java. 
+- If a Java class is called into, the entire class is included in the slice, as scalameta doesn't build an AST for Java files. 
 
 ## Contributing
 

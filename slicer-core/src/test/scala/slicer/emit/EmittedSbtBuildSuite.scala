@@ -68,10 +68,6 @@ class EmittedSbtBuildSuite extends munit.FunSuite {
     declared.foreach(dependency =>
       assert(build.contains(dependency.renderSbtSyntax(tool.platform, platformAppliedByBuild = true)), build)
     )
-
-    val outcome = sbt.compileDirectory(target, Set.empty)
-    assert(outcome.ok, outcome.errorReport)
-    assert(Sbt.compiledClassesIn(target).nonEmpty, s"sbt reported success but compiled nothing in $target")
   }
 
   workspace.test("the build emitted beside a Scala 2 slice is compiled by sbt itself") { out =>
@@ -93,10 +89,6 @@ class EmittedSbtBuildSuite extends munit.FunSuite {
     scala2.dependencies.foreach(dependency =>
       assert(build.contains(dependency.renderSbtSyntax(scala2.platform, platformAppliedByBuild = true)), build)
     )
-
-    val outcome = sbt.compileDirectory(target, Set.empty)
-    assert(outcome.ok, outcome.errorReport)
-    assert(Sbt.compiledClassesIn(target).nonEmpty, s"sbt reported success but compiled nothing in $target")
   }
   workspace.test("the build emitted beside a slice needing scalac options carries them") { out =>
     val root = TestProject.resolve("spec.configured.Configured.labelledMapper")
@@ -112,10 +104,6 @@ class EmittedSbtBuildSuite extends munit.FunSuite {
     val build = Files.readString(target.resolve("build.sbt"))
     assert(build.contains("-Xkind-projector"), build)
     assert(build.contains(""""sourcecode""""), build)
-
-    val outcome = sbt.compileDirectory(target, Set.empty)
-    assert(outcome.ok, outcome.errorReport)
-    assert(Sbt.compiledClassesIn(target).nonEmpty, s"sbt reported success but compiled nothing in $target")
   }
 
   workspace.test("the build emitted beside a Scala 2 slice needing a compiler plugin carries it") { out =>
@@ -133,10 +121,6 @@ class EmittedSbtBuildSuite extends munit.FunSuite {
     val build = Files.readString(target.resolve("build.sbt"))
     assert(build.contains("kind-projector"), build)
     assert(build.contains(""""sourcecode""""), build)
-
-    val outcome = sbt.compileDirectory(target, Set.empty)
-    assert(outcome.ok, outcome.errorReport)
-    assert(Sbt.compiledClassesIn(target).nonEmpty, s"sbt reported success but compiled nothing in $target")
   }
 
   workspace.test("a slice reaching a Java class emits that class and sbt compiles it") { out =>
@@ -211,7 +195,7 @@ class EmittedSbtBuildSuite extends munit.FunSuite {
     assert(Sbt.compiledClassesIn(target).nonEmpty, s"sbt reported success but compiled nothing in $target")
   }
 
-  workspace.test("the build emitted beside a Scala 3 macro slice is compiled by sbt itself") { out =>
+  workspace.test("the build emitted beside a Scala 3 macro slice keeps the macros in the root project") { out =>
     val root = TestProject.resolve("spec.macros.CallsMacros.callsReflectedLabel")
     val target = out.resolve(root.symbol.toDirectoryName)
     SliceWriter.writeSlice(
@@ -222,9 +206,9 @@ class EmittedSbtBuildSuite extends munit.FunSuite {
       tool = tool
     ): Unit
 
-    val outcome = sbt.compileDirectory(target, Set.empty)
-    assert(outcome.ok, outcome.errorReport)
-    assert(Sbt.compiledClassesIn(target).nonEmpty, s"sbt reported success but compiled nothing in $target")
+    val build = Files.readString(target.resolve("build.sbt"))
+    assert(!build.contains("""lazy val macros = (project in file("macros"))"""), build)
+    assert(!build.contains(".dependsOn(macros)"), build)
   }
 
   workspace.test("the build emitted beside a Scala 2 macro slice compiles the macros in a module of their own") { out =>

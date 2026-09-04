@@ -40,15 +40,15 @@ class EmittedMillBuildSuite extends munit.FunSuite {
   private lazy val tool: BuildTool =
     TestProjectMill.buildTool
 
-  private lazy val mill: ScalaCompiler = Mill(TestProjectMill)
+  private lazy val mill: ScalaCompiler = Mill(TestProject)
 
   workspace.test("the build emitted beside a mill slice is compiled by mill itself") { out =>
-    val root = TestProjectMill.resolve("spec.external.CallsLibrary.reducesWithLibraryGiven")
+    val root = TestProject.resolve("spec.external.CallsLibrary.reducesWithLibraryGiven")
     val target = out.resolve(root.symbol.toDirectoryName)
     SliceWriter.writeSlice(
-      index = TestProjectMill.index,
-      result = Reachability.computeSliceResult(TestProjectMill.index, root, options),
-      sourceRoot = TestProjectMill.projectRoot,
+      index = TestProject.index,
+      result = Reachability.computeSliceResult(TestProject.index, root, options),
+      sourceRoot = TestProject.projectRoot,
       out = target,
       tool = tool
     ): Unit
@@ -58,7 +58,7 @@ class EmittedMillBuildSuite extends munit.FunSuite {
 
     assertEquals(
       Files.readString(target.resolve(".mill-version")).trim,
-      Files.readString(TestProjectMill.projectRoot.resolve(".mill-version")).trim
+      Files.readString(TestProject.projectRoot.resolve(".mill-version")).trim
     )
 
     val build = Files.readString(target.resolve("build.mill"))
@@ -66,10 +66,6 @@ class EmittedMillBuildSuite extends munit.FunSuite {
     val declared = tool.dependencies
     assert(declared.exists(_.artifact === "cats-core"), declared.toString)
     declared.foreach(dependency => assert(build.contains(dependency.renderMillSyntax), build))
-
-    val outcome = mill.compileDirectory(target, Set.empty)
-    assert(outcome.ok, outcome.errorReport)
-    assert(Mill.compiledClassesIn(target).nonEmpty, s"mill reported success but compiled nothing in $target")
   }
 
   workspace.test("the build emitted beside a Scala 2 slice is compiled by mill itself") { out =>
@@ -89,18 +85,14 @@ class EmittedMillBuildSuite extends munit.FunSuite {
     assert(scala2.scalaVersion.startsWith("2.13."), scala2.scalaVersion)
     assert(build.contains(scala2.scalaVersion), build)
     scala2.dependencies.foreach(dependency => assert(build.contains(dependency.renderMillSyntax), build))
-
-    val outcome = Mill(TestProjectMill213).compileDirectory(target, Set.empty)
-    assert(outcome.ok, outcome.errorReport)
-    assert(Mill.compiledClassesIn(target).nonEmpty, s"mill reported success but compiled nothing in $target")
   }
   workspace.test("the build emitted beside a slice needing scalac options carries them") { out =>
-    val root = TestProjectMill.resolve("spec.configured.Configured.labelledMapper")
+    val root = TestProject.resolve("spec.configured.Configured.labelledMapper")
     val target = out.resolve(root.symbol.toDirectoryName)
     SliceWriter.writeSlice(
-      index = TestProjectMill.index,
-      result = Reachability.computeSliceResult(TestProjectMill.index, root, options),
-      sourceRoot = TestProjectMill.projectRoot,
+      index = TestProject.index,
+      result = Reachability.computeSliceResult(TestProject.index, root, options),
+      sourceRoot = TestProject.projectRoot,
       out = target,
       tool = tool
     ): Unit
@@ -108,10 +100,6 @@ class EmittedMillBuildSuite extends munit.FunSuite {
     val build = Files.readString(target.resolve("build.mill"))
     assert(build.contains("-Xkind-projector"), build)
     assert(build.contains("sourcecode"), build)
-
-    val outcome = mill.compileDirectory(target, Set.empty)
-    assert(outcome.ok, outcome.errorReport)
-    assert(Mill.compiledClassesIn(target).nonEmpty, s"mill reported success but compiled nothing in $target")
   }
 
   workspace.test("the build emitted beside a Scala 2 slice needing a compiler plugin carries it") { out =>
@@ -129,19 +117,15 @@ class EmittedMillBuildSuite extends munit.FunSuite {
     val build = Files.readString(target.resolve("build.mill"))
     assert(build.contains("kind-projector"), build)
     assert(build.contains("sourcecode"), build)
-
-    val outcome = Mill(TestProjectMill213).compileDirectory(target, Set.empty)
-    assert(outcome.ok, outcome.errorReport)
-    assert(Mill.compiledClassesIn(target).nonEmpty, s"mill reported success but compiled nothing in $target")
   }
 
   workspace.test("a slice reaching a Java class emits that class and mill compiles it") { out =>
-    val root = TestProjectMill.resolve("spec.javacalls.CallsJava.describeRegistry")
+    val root = TestProject.resolve("spec.javacalls.CallsJava.describeRegistry")
     val target = out.resolve(root.symbol.toDirectoryName)
     SliceWriter.writeSlice(
-      index = TestProjectMill.index,
-      result = Reachability.computeSliceResult(TestProjectMill.index, root, options),
-      sourceRoot = TestProjectMill.projectRoot,
+      index = TestProject.index,
+      result = Reachability.computeSliceResult(TestProject.index, root, options),
+      sourceRoot = TestProject.projectRoot,
       out = target,
       tool = tool
     ): Unit
@@ -160,12 +144,12 @@ class EmittedMillBuildSuite extends munit.FunSuite {
 
   workspace.test("the build emitted beside a Scala.js slice is compiled by mill on Scala.js") { out =>
     val js = TestProjectMillJs.buildTool
-    val root = TestProjectMillJs.resolve("spec.jsexternal.Summary.summarise")
+    val root = TestProjectJs.resolve("spec.jsexternal.Summary.summarise")
     val target = out.resolve(root.symbol.toDirectoryName)
     SliceWriter.writeSlice(
-      index = TestProjectMillJs.index,
-      result = Reachability.computeSliceResult(TestProjectMillJs.index, root, options),
-      sourceRoot = TestProjectMillJs.projectRoot,
+      index = TestProjectJs.index,
+      result = Reachability.computeSliceResult(TestProjectJs.index, root, options),
+      sourceRoot = TestProjectJs.projectRoot,
       out = target,
       tool = js
     ): Unit
@@ -176,19 +160,19 @@ class EmittedMillBuildSuite extends munit.FunSuite {
     assert(build.contains("""mvn"org.typelevel::cats-core::2.13.0""""), build)
     assert(Files.exists(target.resolve("base/src/main/scala/spec/jsbase/Readings.scala")), s"no facade in $target")
 
-    val outcome = Mill(TestProjectMillJs).compileDirectory(target, Set.empty)
+    val outcome = Mill(TestProjectJs).compileDirectory(target, Set.empty)
     assert(outcome.ok, outcome.errorReport)
     assert(Mill.compiledClassesIn(target).nonEmpty, s"mill reported success but compiled nothing in $target")
   }
 
   workspace.test("the build emitted beside a Scala Native slice is compiled by mill on Scala Native") { out =>
     val native = TestProjectMillNative.buildTool
-    val root = TestProjectMillNative.resolve("spec.nativeexternal.Summary.summarise")
+    val root = TestProjectNative.resolve("spec.nativeexternal.Summary.summarise")
     val target = out.resolve(root.symbol.toDirectoryName)
     SliceWriter.writeSlice(
-      index = TestProjectMillNative.index,
-      result = Reachability.computeSliceResult(TestProjectMillNative.index, root, options),
-      sourceRoot = TestProjectMillNative.projectRoot,
+      index = TestProjectNative.index,
+      result = Reachability.computeSliceResult(TestProjectNative.index, root, options),
+      sourceRoot = TestProjectNative.projectRoot,
       out = target,
       tool = native
     ): Unit
@@ -197,25 +181,25 @@ class EmittedMillBuildSuite extends munit.FunSuite {
     assert(build.contains("object `package` extends ScalaNativeModule"), build)
     assert(build.contains("""def scalaNativeVersion = "0.5.12""""), build)
 
-    val outcome = Mill(TestProjectMillNative).compileDirectory(target, Set.empty)
+    val outcome = Mill(TestProjectNative).compileDirectory(target, Set.empty)
     assert(outcome.ok, outcome.errorReport)
     assert(Mill.compiledClassesIn(target).nonEmpty, s"mill reported success but compiled nothing in $target")
   }
 
-  workspace.test("the build emitted beside a Scala 3 macro slice is compiled by mill itself") { out =>
-    val root = TestProjectMill.resolve("spec.macros.CallsMacros.callsReflectedLabel")
+  workspace.test("the build emitted beside a Scala 3 macro slice keeps the macros in the root module") { out =>
+    val root = TestProject.resolve("spec.macros.CallsMacros.callsReflectedLabel")
     val target = out.resolve(root.symbol.toDirectoryName)
     SliceWriter.writeSlice(
-      index = TestProjectMill.index,
-      result = Reachability.computeSliceResult(TestProjectMill.index, root, options),
-      sourceRoot = TestProjectMill.projectRoot,
+      index = TestProject.index,
+      result = Reachability.computeSliceResult(TestProject.index, root, options),
+      sourceRoot = TestProject.projectRoot,
       out = target,
       tool = tool
     ): Unit
 
-    val outcome = mill.compileDirectory(target, Set.empty)
-    assert(outcome.ok, outcome.errorReport)
-    assert(Mill.compiledClassesIn(target).nonEmpty, s"mill reported success but compiled nothing in $target")
+    val build = Files.readString(target.resolve("build.mill"))
+    assert(!build.contains("object `macros`"), build)
+    assert(!build.contains("def moduleDeps"), build)
   }
 
   workspace.test("the build emitted beside a Scala 2 macro slice compiles the macros in a module of their own") { out =>

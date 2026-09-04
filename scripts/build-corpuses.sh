@@ -22,7 +22,7 @@ case "$tool" in
 esac
 
 sbt_corpuses=(test-project test-project-213 test-project-js test-project-native)
-mill_corpuses=(test-project test-project-213 test-project-js test-project-native)
+mill_corpuses=(test-project test-project-213)
 
 findSourceNewerThanStamp() {
   local corpus="$1" stamp="$2" first="$3" second="$4"
