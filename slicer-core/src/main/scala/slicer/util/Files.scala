@@ -16,8 +16,9 @@
 
 package slicer.util
 
-import java.nio.file.{Files as JFiles, Path}
-import java.util.Comparator
+import java.io.IOException
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.{FileVisitResult, Files as JFiles, Path, SimpleFileVisitor}
 
 import scala.jdk.CollectionConverters.*
 import scala.util.Using
@@ -31,9 +32,21 @@ private[slicer] object Files {
         _.iterator().asScala.filter(JFiles.isDirectory(_)).toVector.sortBy(_.toString)
       )
 
+  private val deleteWhileWalking: SimpleFileVisitor[Path] = new SimpleFileVisitor[Path] {
+
+    override def visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult = {
+      JFiles.deleteIfExists(file): Unit
+      FileVisitResult.CONTINUE
+    }
+
+    override def visitFileFailed(file: Path, failure: IOException): FileVisitResult = FileVisitResult.CONTINUE
+
+    override def postVisitDirectory(directory: Path, failure: IOException): FileVisitResult = {
+      JFiles.deleteIfExists(directory): Unit
+      FileVisitResult.CONTINUE
+    }
+  }
+
   def deleteRecursively(directory: Path): Unit =
-    if (JFiles.exists(directory))
-      Using.resource(JFiles.walk(directory))(
-        _.sorted(Comparator.reverseOrder[Path]).forEach(path => JFiles.deleteIfExists(path): Unit)
-      )
+    if (JFiles.exists(directory)) JFiles.walkFileTree(directory, deleteWhileWalking): Unit
 }
