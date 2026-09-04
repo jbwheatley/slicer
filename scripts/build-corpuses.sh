@@ -52,19 +52,26 @@ buildCorpus() {
   if ! (cd "$corpus" && "$@") >"$log" 2>&1; then
     echo "the $name corpus failed to build with $*" >&2
     cat "$log" >&2
+    touch "$logs/failed-$name-$outputName"
     return 1
   fi
   mkdir -p "$output"
   touch "$stamp"
 }
 
-pids=()
-started=()
+processors=$( (nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2) )
+concurrency=$((processors / 2))
+[ "$concurrency" -lt 1 ] && concurrency=1
+
+running=0
 
 startCorpus() {
+  if [ "$running" -ge "$concurrency" ]; then
+    wait -n || true
+    running=$((running - 1))
+  fi
   buildCorpus "$@" &
-  pids+=("$!")
-  started+=("$1 with ${*:5}")
+  running=$((running + 1))
 }
 
 if [ "$tool" != mill ]; then
@@ -79,12 +86,12 @@ if [ "$tool" != sbt ]; then
   done
 fi
 
-failures=0
-for index in "${!pids[@]}"; do
-  if ! wait "${pids[$index]}"; then
-    echo "corpus build failed: ${started[$index]}" >&2
-    failures=$((failures + 1))
-  fi
-done
+wait
 
-exit "$failures"
+failed=("$logs"/failed-*)
+[ -e "${failed[0]}" ] || exit 0
+
+for marker in "${failed[@]}"; do
+  echo "corpus build failed: $(basename "$marker" | sed 's/^failed-//')" >&2
+done
+exit 1
