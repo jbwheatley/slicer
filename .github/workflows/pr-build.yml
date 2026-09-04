@@ -52,8 +52,8 @@ jobs:
           restore-keys: ${{ runner.os }}-sbt-cache-${{ github.job }}-
       - name: Setup coursier
         uses: coursier/setup-action@v1
-      - name: Build every corpus
-        run: ./scripts/build-corpuses.sh --rebuild
+      - name: Build the corpuses the suites index
+        run: ./scripts/build-corpuses.sh --rebuild --corpus test-project --corpus test-project-213
       - name: Compile and run every suite
         run: sbt testCheck
 
@@ -135,7 +135,7 @@ jobs:
           restore-keys: ${{ runner.os }}-sbt-cache-${{ github.job }}-
       - name: Setup coursier
         uses: coursier/setup-action@v1
-      - name: Build every sbt corpus
-        run: ./scripts/build-corpuses.sh --rebuild --tool sbt
+      - name: Build the corpuses that get sliced
+        run: ./scripts/build-corpuses.sh --rebuild --tool sbt --corpus test-project --corpus test-project-213
       - name: Compile a standalone slice of every corpus definition
         run: sbt corpusCheck/checkCorpusSlices

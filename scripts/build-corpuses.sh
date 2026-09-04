@@ -6,12 +6,14 @@ corpuses="slicer-core/src/test"
 
 rebuild=false
 tool=all
+chosen=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --rebuild) rebuild=true ;;
     --tool) tool="${2:-}"; shift ;;
-    *) echo "usage: $0 [--rebuild] [--tool sbt|mill|all]" >&2; exit 2 ;;
+    --corpus) chosen="$chosen ${2:-}"; shift ;;
+    *) echo "usage: $0 [--rebuild] [--tool sbt|mill|all] [--corpus <name>]..." >&2; exit 2 ;;
   esac
   shift
 done
@@ -23,6 +25,21 @@ esac
 
 sbt_corpuses=(test-project test-project-213 test-project-js test-project-native)
 mill_corpuses=(test-project test-project-213)
+
+for name in $chosen; do
+  case " ${sbt_corpuses[*]} " in
+    *" $name "*) ;;
+    *) echo "unknown corpus '$name': expected one of ${sbt_corpuses[*]}" >&2; exit 2 ;;
+  esac
+done
+
+wasChosen() {
+  [ -z "$chosen" ] && return 0
+  case " $chosen " in
+    *" $1 "*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 findSourceNewerThanStamp() {
   local corpus="$1" stamp="$2" first="$3" second="$4"
@@ -76,13 +93,13 @@ startCorpus() {
 
 if [ "$tool" != mill ]; then
   for name in "${sbt_corpuses[@]}"; do
-    startCorpus "$name" target scala sbt sbt compile
+    if wasChosen "$name"; then startCorpus "$name" target scala sbt sbt compile; fi
   done
 fi
 
 if [ "$tool" != sbt ]; then
   for name in "${mill_corpuses[@]}"; do
-    startCorpus "$name" out scala mill ./mill __.semanticDbData
+    if wasChosen "$name"; then startCorpus "$name" out scala mill ./mill __.semanticDbData; fi
   done
 fi
 
