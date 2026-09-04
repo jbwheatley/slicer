@@ -79,10 +79,10 @@ Extract compilable vertical slice of Scala codebase from SemanticDB.
 - **Suites test library, not harness**; harness helpers are proved by suites that use them, library helpers carry own suites.
 - **No test may depend on local publish**: it would test last `publishLocal`, not working tree.
 - **No test may run `slice` itself**: opens picker, blocks until killed.
-- **`slicer-mill/` holds only plugin-shaped suites** — test whose subject is emission belongs in `slicer-core/`, whatever build tool it drives, except the emitted-build twins.
-- **Suite that forks a build tool runs alone**: `emitted-build-check` holds the twins, runs them serially, and it and `slicer-mill` carry `forksABuildTool`, limited to one at a time. Two Scala Native builds on a CI runner starve each other past the munit timeout, and the timeout is not the thing to raise.
-- **`testCheck` runs `suiteModules`, `checkEmittedBuilds` runs the twins**, each in its own CI job: module left out of that list has its suites run nowhere, and the twins' job builds the mill corpuses too because the mill twin indexes them.
-- **Emitted-build suites are twins**, one per build tool, and the only place slice is compiled through its own generated build. Keep them symmetric: same root, same assertions, only file names and syntax differ. Assert class files came out, never just exit code — build whose sources resolve to nothing exits 0.
+- **`slicer-mill/` holds only plugin-shaped suites** — test whose subject is emission belongs in `slicer-core/`, whatever build tool it drives, except the emitted-build suites.
+- **Suite that forks a build tool runs alone**: `emitted-build-check` runs its suites serially, and it and `slicer-mill` carry `forksABuildTool`, limited to one at a time. Two Scala Native builds on a CI runner starve each other past the munit timeout, and the timeout is not the thing to raise.
+- **`testCheck` runs `suiteModules`, `checkEmittedBuilds` runs `emitted-build-check`**: module left out of that list has its suites run nowhere. CI gives each emitted-build suite a job of its own.
+- **One emitted-build suite per build tool**, and the only place slice is compiled through its own generated build. Keep them symmetric: same root, same assertions, only file names and syntax differ. Assert class files came out, never just exit code — build whose sources resolve to nothing exits 0.
 - **Build tool is run once per distinct emitted build shape**, every other case asserting on emitted text: shape is scala version, platform, module split and source roots, so same shape twice is a subprocess bought nothing. Emitted build carries no code but the slice's, so an empty one proves nothing — source roots need a file under them.
 - New rule gets named test in reachability or emit suites, Scala-2 shaped ones included. Compile check says *something* broke; those say *what*.
 - Re-baseline golden suites by deleting **every** baseline directory and rerunning; diff is review.

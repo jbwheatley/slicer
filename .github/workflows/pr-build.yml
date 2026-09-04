@@ -57,7 +57,7 @@ jobs:
       - name: Compile and run every suite
         run: sbt testCheck
 
-  emitted-builds:
+  emitted-sbt-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -79,10 +79,39 @@ jobs:
           restore-keys: ${{ runner.os }}-sbt-cache-${{ github.job }}-
       - name: Setup coursier
         uses: coursier/setup-action@v1
-      - name: Build every corpus
-        run: ./scripts/build-corpuses.sh --rebuild
-      - name: Compile a slice through its own emitted build
-        run: sbt checkEmittedBuilds
+      - name: Build the corpuses the slices come from
+        run: ./scripts/build-corpuses.sh --rebuild --tool sbt
+      - name: Compile a slice through the sbt build emitted beside it
+        run: sbt checkEmittedSbtBuild
+
+  emitted-mill-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+      - name: Cache the sbt build cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/sbt/v2
+          key: ${{ runner.os }}-sbt-cache-${{ github.job }}-${{ hashFiles('**/*.scala', '**/*.sbt', 'project/build.properties') }}
+          restore-keys: ${{ runner.os }}-sbt-cache-${{ github.job }}-
+      - name: Setup coursier
+        uses: coursier/setup-action@v1
+      - name: Build the corpuses the slices come from
+        run: ./scripts/build-corpuses.sh --rebuild --tool sbt
+      - name: Build the mill corpus the suite indexes
+        run: ./scripts/build-corpuses.sh --rebuild --tool mill --corpus test-project-213
+      - name: Compile a slice through the mill build emitted beside it
+        run: sbt checkEmittedMillBuild
 
   example:
     runs-on: ubuntu-latest

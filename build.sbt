@@ -252,4 +252,14 @@ addCommandAlias(
 
 addCommandAlias("checkEmittedBuilds", List("compile", "emittedBuildCheck/testFull").mkString(";", ";", ""))
 
+addCommandAlias(
+  "checkEmittedSbtBuild",
+  List("compile", "emittedBuildCheck/testOnly slicer.emit.EmittedSbtBuildSuite").mkString(";", ";", "")
+)
+
+addCommandAlias(
+  "checkEmittedMillBuild",
+  List("compile", "emittedBuildCheck/testOnly slicer.emit.EmittedMillBuildSuite").mkString(";", ";", "")
+)
+
 addCommandAlias("commitCheck", List("lintCheck", "testCheck", "checkEmittedBuilds").mkString(";", ";", ""))
