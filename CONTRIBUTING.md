@@ -3,7 +3,7 @@
 You can try out both the mill and sbt entry points in the example project. This requires first a local publish i.e. `sbt publishLocal`. 
 
 Before running the tests you need to create the test corpuses - Scala projects that aim to cover all possible Scala code and build
-configurations. Do this by running `sbt buildCorpuses`. The you can run `sbt commitCheck` to run the linting checks and tests.
+configurations. Do this by running `./scripts/build-corpuses.sh`. Then you can run `sbt commitCheck` to run the linting checks and tests.
 
 ## Style/formatting
 

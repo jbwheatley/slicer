@@ -64,11 +64,12 @@ Extract compilable vertical slice of Scala codebase from SemanticDB.
 - **One top-level definition per file, file named after it.** Companion shares its class's file. Corpuses keep multi-definition files.
 - **Public API is entry points and `SbtLayoutzApp` only**: `SlicerPlugin`, `SlicerModule` and what their signatures expose. Everything else is `private[slicer]`, or narrower where one package holds it.
 - **Full-word variables** — `index`, not `idx`. Established short idioms stay: `sym`, `tpe`, `pos`, `out`.
-- **No comments in `.scala` or `.sbt` sources**: the name carries the explanation, and scalafix directives are the only exception. Comments in corpus are data, not documentation — suites assert on them, leave alone.
+- **No comments in `.scala`, `.sbt`, `.sh` or `.yml` sources**: the name carries the explanation, and scalafix directives are the only exception. Comments in corpus are data, not documentation — suites assert on them, leave alone.
+- **`README.md` and `CONTRIBUTING.md` are human-written**: say what belongs there and let the maintainer write it. Rules meant for you live here.
 
 ## Verification
 
-- **Corpuses built by build, not suites**: suite only checks output is there and fails with the build command to run. **`sbt buildCorpuses` skips nothing**: corpus SemanticDB are symlinks into sbt's shared cache, and pruned cache leaves links reading as no file rather than stale one.
+- **Corpuses built by their own script, never from inside sbt**: suite only checks output is there and fails with the build command to run, and no sbt task builds one. Shelling `sbt` or `./mill` out of a running sbt server nests daemon in daemon — inner thin client races its own `active.json`, inner mill daemon steals the CPU suite timeouts are measured against. **Rebuild mode skips nothing, and CI uses it**: corpus SemanticDB are symlinks into sbt's shared cache, and pruned cache leaves links reading as no file rather than stale one.
 - **Plugins stay out of corpuses**: `mill-build` dependency on unpublished plugin, or triggered `SlicerPlugin` changing `semanticdbOptions`, breaks suites.
 - **One corpus carries every build tool that slices it**, one platform per corpus — sbt reads every `*.sbt` in directory as one build. Tool output directories must not collide, and staleness check must skip **all** of them: mill writes generated `.scala` under its own output, so skipping only output it stamps rebuilds forever.
 - **Nothing drives compiler or mill subprocess from inside `test` body**: munit 30s timeout under parallel load on CI runner. **Timeouts stay where they are** — suite that outgrows one is work to move out of munit, not number to raise.

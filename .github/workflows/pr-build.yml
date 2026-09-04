@@ -20,7 +20,7 @@ jobs:
           distribution: temurin
           java-version: 25
           cache: sbt
-      - uses: sbt/setup-sbt@v1 #https://eed3si9n.com/setup-sbt/
+      - uses: sbt/setup-sbt@v1
       - name: Check formatting, headers and scalafix rules
         run: sbt lintCheck
 
@@ -37,11 +37,11 @@ jobs:
           distribution: temurin
           java-version: 25
           cache: sbt
-      - uses: sbt/setup-sbt@v1 #https://eed3si9n.com/setup-sbt/
-      - name: Setup coursier # tests shell out to `cs fetch` for compiler classpaths
+      - uses: sbt/setup-sbt@v1
+      - name: Setup coursier
         uses: coursier/setup-action@v1
-      - name: Build every corpus # ahead of the suites, so no mill daemon starts while they run
-        run: sbt buildCorpuses
+      - name: Build every corpus
+        run: ./scripts/build-corpuses.sh --rebuild
       - name: Compile and run every suite
         run: sbt testCheck
 
@@ -84,5 +84,7 @@ jobs:
       - uses: sbt/setup-sbt@v1
       - name: Setup coursier
         uses: coursier/setup-action@v1
+      - name: Build every sbt corpus
+        run: ./scripts/build-corpuses.sh --rebuild --tool sbt
       - name: Compile a standalone slice of every corpus definition
         run: sbt corpusCheck/checkCorpusSlices

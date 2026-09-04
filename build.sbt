@@ -9,8 +9,6 @@ val catsEffect = "3.7.1"
 val layoutz = "0.8.0"
 val mill = "1.1.8"
 
-val buildCorpuses = taskKey[Unit]("Compile the test corpuses the slicer and tui suites read SemanticDB from")
-
 val checkCorpusSlices =
   taskKey[Unit]("Slice every definition of both sbt corpuses and compile each slice standalone")
 
@@ -27,62 +25,6 @@ val taggedVersion = Def.setting {
 
 val writeSemanticClasspath =
   taskKey[File]("Write every module's test classpath to .claude/scala-semantic-classpath.txt for the MCP server")
-
-private def newestChange(directory: File, extensions: Set[String], skip: File => Boolean): Long =
-  Option(directory)
-    .filter(_.isDirectory)
-    .toVector
-    .flatMap(dir => (dir ** "*").get().filter(file => extensions.contains(file.ext) && !skip(file)))
-    .map(_.lastModified())
-    .maxOption
-    .getOrElse(0L)
-
-val sbtCorpuses = Seq("test-project", "test-project-213")
-
-val millCorpuses = Seq("test-project", "test-project-213")
-
-val platformCorpuses = Seq("test-project-js", "test-project-native")
-
-val corpusOutputs = Seq("target", "out")
-
-def compileCorpuses(
-    root: File,
-    sbtNames: Seq[String],
-    millNames: Seq[String],
-    log: Logger,
-    rebuild: Boolean
-): Unit = {
-  sbtNames.foreach { name =>
-    val corpus = root / name
-    compileCorpus(corpus, Seq("sbt", "compile"), corpus / "target", Set("scala", "sbt"), log, rebuild)
-  }
-  millNames.foreach { name =>
-    val corpus = root / name
-    compileCorpus(corpus, Seq("./mill", "__.semanticDbData"), corpus / "out", Set("scala", "mill"), log, rebuild)
-  }
-}
-
-def compileCorpus(
-    corpus: File,
-    command: Seq[String],
-    output: File,
-    sources: Set[String],
-    log: Logger,
-    rebuild: Boolean
-): Unit = {
-  val outputs = corpusOutputs.map(name => (corpus / name).toPath)
-  val sourcesChangedAt =
-    newestChange(corpus, sources, file => outputs.exists(file.toPath.startsWith))
-  val stamp = output / ".slicer-corpus-built"
-  if (rebuild) IO.delete(output)
-  if (rebuild || !stamp.isFile || stamp.lastModified() < sourcesChangedAt) {
-    log.info(s"building the ${corpus.getName} corpus with ${command.mkString(" ")}")
-    val status = scala.sys.process.Process(command, corpus).!
-    if (status != 0) sys.error(s"building the corpus in $corpus failed with exit code $status")
-    IO.createDirectory(output)
-    IO.touch(stamp)
-  }
-}
 
 inThisBuild(
   List(
@@ -106,16 +48,7 @@ inThisBuild(
       val versionInBuild = version.value
       if (versionInBuild.endsWith("-SNAPSHOT"))
         sys.error(s"failed to publish $versionInBuild - releases must be done via pushing a git tag")
-    },
-    buildCorpuses := Def.uncached(
-      compileCorpuses(
-        (ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test",
-        sbtCorpuses ++ platformCorpuses,
-        millCorpuses ++ platformCorpuses,
-        streams.value.log,
-        rebuild = true
-      )
-    )
+    }
   )
 )
 
@@ -168,21 +101,7 @@ lazy val slicerCore = (project in file("slicer-core"))
     ),
     Test / fork := true,
     Test / javaOptions ++= Seq("-Xmx2g", "-Xss4m"),
-    Test / testOptions += Tests.Argument(TestFrameworks.MUnit, "+l"),
-    Test / testOptions += {
-      val corpuses = (ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test"
-      val log = streams.value.log
-      Tests
-        .Setup(() =>
-          compileCorpuses(
-            corpuses,
-            sbtCorpuses ++ platformCorpuses,
-            millCorpuses ++ platformCorpuses,
-            log,
-            rebuild = false
-          )
-        )
-    }
+    Test / testOptions += Tests.Argument(TestFrameworks.MUnit, "+l")
   )
 
 lazy val tuiViewport = (project in file("tui-viewport"))
@@ -208,12 +127,7 @@ lazy val slicerTui = (project in file("slicer-tui"))
       "org.scalameta" %% "munit" % munit % Test
     ),
     Test / fork := true,
-    Test / javaOptions ++= Seq("-Xmx2g", "-Xss4m"),
-    Test / testOptions += {
-      val corpuses = (ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test"
-      val log = streams.value.log
-      Tests.Setup(() => compileCorpuses(corpuses, sbtCorpuses, Nil, log, rebuild = false))
-    }
+    Test / javaOptions ++= Seq("-Xmx2g", "-Xss4m")
   )
 
 lazy val slicerMill = (project in file("slicer-mill"))
@@ -242,12 +156,7 @@ lazy val slicerMill = (project in file("slicer-mill"))
       s"-Dslicer.millCorpus=${(ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test" / "test-project"}",
       s"-Dslicer.millCorpus213=${(ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test" / "test-project-213"}",
       s"-Dslicer.unitProject=${(Test / resourceDirectory).value / "unit-test-project"}"
-    ),
-    Test / testOptions += {
-      val corpuses = (ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test"
-      val log = streams.value.log
-      Tests.Setup(() => compileCorpuses(corpuses, Nil, millCorpuses, log, rebuild = false))
-    }
+    )
   )
 
 lazy val corpusCheck = (project in file("corpus-check"))
@@ -259,8 +168,6 @@ lazy val corpusCheck = (project in file("corpus-check"))
     publish / skip := true,
     libraryDependencies += "org.typelevel" %% "cats-effect" % catsEffect,
     checkCorpusSlices := Def.uncached {
-      val corpuses = (ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test"
-      compileCorpuses(corpuses, sbtCorpuses, Nil, streams.value.log, rebuild = false)
       val converter = fileConverter.value
       val classpath = (Compile / fullClasspath).value
         .map(entry => converter.toPath(entry.data).toAbsolutePath.toString)
@@ -300,12 +207,7 @@ lazy val slicerSbt = (project in file("slicer-sbt"))
       "-Xmx2g",
       "-Xss4m",
       s"-Dslicer.sbtCorpus=${(ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test" / "test-project"}"
-    ),
-    Test / testOptions += {
-      val corpuses = (ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test"
-      val log = streams.value.log
-      Tests.Setup(() => compileCorpuses(corpuses, Seq("test-project"), Nil, log, rebuild = false))
-    }
+    )
   )
 
 addCommandAlias(
