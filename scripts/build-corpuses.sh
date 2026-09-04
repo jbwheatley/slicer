@@ -31,12 +31,16 @@ findSourceNewerThanStamp() {
     -type f \( -name "*.$first" -o -name "*.$second" \) -newer "$stamp" -print -quit
 }
 
+logs=$(mktemp -d)
+trap 'rm -rf "$logs"' EXIT
+
 buildCorpus() {
   local name="$1" outputName="$2" first="$3" second="$4"
   shift 4
   local corpus="$corpuses/$name"
   local output="$corpus/$outputName"
   local stamp="$output/.slicer-corpus-built"
+  local log="$logs/$name-$outputName.log"
 
   if [ "$rebuild" = true ]; then rm -rf "$output"; fi
   if [ "$rebuild" = false ] && [ -f "$stamp" ] &&
@@ -45,19 +49,42 @@ buildCorpus() {
   fi
 
   echo "building the $name corpus with $*"
-  (cd "$corpus" && "$@")
+  if ! (cd "$corpus" && "$@") >"$log" 2>&1; then
+    echo "the $name corpus failed to build with $*" >&2
+    cat "$log" >&2
+    return 1
+  fi
   mkdir -p "$output"
   touch "$stamp"
 }
 
+pids=()
+started=()
+
+startCorpus() {
+  buildCorpus "$@" &
+  pids+=("$!")
+  started+=("$1 with ${*:5}")
+}
+
 if [ "$tool" != mill ]; then
   for name in "${sbt_corpuses[@]}"; do
-    buildCorpus "$name" target scala sbt sbt compile
+    startCorpus "$name" target scala sbt sbt compile
   done
 fi
 
 if [ "$tool" != sbt ]; then
   for name in "${mill_corpuses[@]}"; do
-    buildCorpus "$name" out scala mill ./mill __.semanticDbData
+    startCorpus "$name" out scala mill ./mill __.semanticDbData
   done
 fi
+
+failures=0
+for index in "${!pids[@]}"; do
+  if ! wait "${pids[$index]}"; then
+    echo "corpus build failed: ${started[$index]}" >&2
+    failures=$((failures + 1))
+  fi
+done
+
+exit "$failures"
