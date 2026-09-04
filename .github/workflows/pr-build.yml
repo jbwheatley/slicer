@@ -7,7 +7,7 @@ on:
     types: [opened, edited, reopened, synchronize]
 
 jobs:
-  lint:
+  format:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -27,8 +27,31 @@ jobs:
           path: ~/.cache/sbt/v2
           key: ${{ runner.os }}-sbt-cache-${{ github.job }}-${{ hashFiles('**/*.scala', '**/*.sbt', 'project/build.properties') }}
           restore-keys: ${{ runner.os }}-sbt-cache-${{ github.job }}-
-      - name: Check formatting, headers and scalafix rules
-        run: sbt lintCheck
+      - name: Check formatting and headers
+        run: sbt formatCheck
+
+  scalafix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+      - name: Cache the sbt build cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/sbt/v2
+          key: ${{ runner.os }}-sbt-cache-${{ github.job }}-${{ hashFiles('**/*.scala', '**/*.sbt', 'project/build.properties') }}
+          restore-keys: ${{ runner.os }}-sbt-cache-${{ github.job }}-
+      - name: Check scalafix rules
+        run: sbt scalafixCheck
 
   tests:
     runs-on: ubuntu-latest

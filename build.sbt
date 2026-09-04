@@ -236,14 +236,17 @@ lazy val slicerSbt = (project in file("slicer-sbt"))
   )
 
 addCommandAlias(
-  "lintCheck",
+  "formatCheck",
   List(
     "scalafmtCheckAll",
     "scalafmtSbtCheck",
-    "headerCheck",
-    "scalafixAll --check"
+    "headerCheck"
   ).mkString(";", ";", "")
 )
+
+addCommandAlias("scalafixCheck", List("scalafixAll --check").mkString(";", ";", ""))
+
+addCommandAlias("lintCheck", List("formatCheck", "scalafixCheck").mkString(";", ";", ""))
 
 addCommandAlias(
   "testCheck",
