@@ -8,6 +8,7 @@ val munit = "1.3.5"
 val catsEffect = "3.7.1"
 val layoutz = "0.8.0"
 val mill = "1.1.8"
+val sbtTuiLibraries = "0.0.1"
 
 val checkCorpusSlices =
   taskKey[Unit]("Slice every definition of both sbt corpuses and compile each slice standalone")
@@ -68,7 +69,7 @@ val commonSettings = Seq(
 )
 
 lazy val suiteModules =
-  List(slicerCore, tuiViewport, sbtTui, slicerSbt, slicerTui, slicerMill, corpusCheck)
+  List(slicerCore, slicerSbt, slicerTui, slicerMill, corpusCheck)
 
 lazy val root = (project in file("."))
   .enablePlugins(ScalaSemanticMcpPlugin)
@@ -84,8 +85,6 @@ lazy val root = (project in file("."))
         (slicerTui / Test / fullClasspath).value,
         (slicerMill / Test / fullClasspath).value,
         (slicerSbt / Test / fullClasspath).value,
-        (sbtTui / Test / fullClasspath).value,
-        (tuiViewport / Test / fullClasspath).value,
         (corpusCheck / Compile / fullClasspath).value,
         (emittedBuildCheck / Test / fullClasspath).value
       ).flatten.map(entry => converter.toPath(entry.data).toAbsolutePath.toString).distinct
@@ -111,25 +110,14 @@ lazy val slicerCore = (project in file("slicer-core"))
     Test / testOptions += Tests.Argument(TestFrameworks.MUnit, "+l")
   )
 
-lazy val tuiViewport = (project in file("tui-viewport"))
-  .enablePlugins(AutomateHeaderPlugin)
-  .settings(commonSettings)
-  .settings(
-    name := "tui-viewport",
-    libraryDependencies ++= Seq(
-      "xyz.matthieucourt" %% "layoutz" % layoutz,
-      "org.typelevel" %% "cats-core" % cats,
-      "org.scalameta" %% "munit" % munit % Test
-    )
-  )
-
 lazy val slicerTui = (project in file("slicer-tui"))
   .enablePlugins(AutomateHeaderPlugin)
-  .dependsOn(slicerCore % "compile->compile;test->test", tuiViewport)
+  .dependsOn(slicerCore % "compile->compile;test->test")
   .settings(commonSettings)
   .settings(
     name := "slicer-tui",
     libraryDependencies ++= Seq(
+      "io.github.jbwheatley" %% "tui-viewport" % sbtTuiLibraries,
       "xyz.matthieucourt" %% "layoutz" % layoutz,
       "org.scalameta" %% "munit" % munit % Test
     ),
@@ -206,27 +194,17 @@ lazy val corpusCheck = (project in file("corpus-check"))
     }
   )
 
-lazy val sbtTui = (project in file("sbt-tui"))
-  .enablePlugins(AutomateHeaderPlugin)
-  .dependsOn(tuiViewport)
-  .settings(commonSettings)
-  .settings(
-    name := "sbt-tui",
-    sbtPlugin := true,
-    libraryDependencies ++= Seq(
-      "xyz.matthieucourt" %% "layoutz" % layoutz,
-      "org.typelevel" %% "cats-core" % cats
-    )
-  )
-
 lazy val slicerSbt = (project in file("slicer-sbt"))
   .enablePlugins(AutomateHeaderPlugin)
-  .dependsOn(slicerTui, sbtTui)
+  .dependsOn(slicerTui)
   .settings(commonSettings)
   .settings(
     name := "slicer-sbt",
     sbtPlugin := true,
-    libraryDependencies += "org.scalameta" %% "munit" % munit % Test,
+    libraryDependencies ++= Seq(
+      "io.github.jbwheatley" %% "sbt-tui_sbt2" % sbtTuiLibraries,
+      "org.scalameta" %% "munit" % munit % Test
+    ),
     Test / fork := true,
     Test / javaOptions ++= Seq(
       "-Xmx2g",
