@@ -57,6 +57,33 @@ jobs:
       - name: Compile and run every suite
         run: sbt testCheck
 
+  emitted-builds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+      - name: Cache the sbt build cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/sbt/v2
+          key: ${{ runner.os }}-sbt-cache-${{ github.job }}-${{ hashFiles('**/*.scala', '**/*.sbt', 'project/build.properties') }}
+          restore-keys: ${{ runner.os }}-sbt-cache-${{ github.job }}-
+      - name: Setup coursier
+        uses: coursier/setup-action@v1
+      - name: Build every corpus
+        run: ./scripts/build-corpuses.sh --rebuild
+      - name: Compile a slice through its own emitted build
+        run: sbt checkEmittedBuilds
+
   example:
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -67,9 +67,12 @@ val commonSettings = Seq(
   )
 )
 
+lazy val suiteModules =
+  List(slicerCore, tuiViewport, sbtTui, slicerSbt, slicerTui, slicerMill, corpusCheck)
+
 lazy val root = (project in file("."))
   .enablePlugins(ScalaSemanticMcpPlugin)
-  .aggregate(slicerCore, tuiViewport, sbtTui, slicerSbt, slicerTui, slicerMill, corpusCheck, emittedBuildCheck)
+  .aggregate((suiteModules :+ emittedBuildCheck).map(module => LocalProject(module.id)) *)
   .settings(commonSettings)
   .settings(
     name := "slicer",
@@ -242,6 +245,11 @@ addCommandAlias(
   ).mkString(";", ";", "")
 )
 
-addCommandAlias("testCheck", List("compile", "testFull").mkString(";", ";", ""))
+addCommandAlias(
+  "testCheck",
+  ("compile" :: suiteModules.map(module => s"${module.id}/testFull")).mkString(";", ";", "")
+)
 
-addCommandAlias("commitCheck", List("lintCheck", "testCheck").mkString(";", ";", ""))
+addCommandAlias("checkEmittedBuilds", List("compile", "emittedBuildCheck/testFull").mkString(";", ";", ""))
+
+addCommandAlias("commitCheck", List("lintCheck", "testCheck", "checkEmittedBuilds").mkString(";", ";", ""))
