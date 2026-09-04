@@ -26,6 +26,8 @@ val taggedVersion = Def.setting {
 val writeSemanticClasspath =
   taskKey[File]("Write every module's test classpath to .claude/scala-semantic-classpath.txt for the MCP server")
 
+val forksABuildTool = Tags.Tag("forksABuildTool")
+
 inThisBuild(
   List(
     organization := "io.github.jbwheatley",
@@ -44,6 +46,7 @@ inThisBuild(
     semanticdbEnabled := true,
     scalafixDependencies += "com.github.jatcwang" %% "scalafix-named-params" % "0.2.6",
     version := taggedVersion.value,
+    concurrentRestrictions += Tags.limit(forksABuildTool, 1),
     rejectSnapshotPublish := {
       val versionInBuild = version.value
       if (versionInBuild.endsWith("-SNAPSHOT"))
@@ -66,7 +69,7 @@ val commonSettings = Seq(
 
 lazy val root = (project in file("."))
   .enablePlugins(ScalaSemanticMcpPlugin)
-  .aggregate(slicerCore, tuiViewport, sbtTui, slicerSbt, slicerTui, slicerMill, corpusCheck)
+  .aggregate(slicerCore, tuiViewport, sbtTui, slicerSbt, slicerTui, slicerMill, corpusCheck, emittedBuildCheck)
   .settings(commonSettings)
   .settings(
     name := "slicer",
@@ -80,7 +83,8 @@ lazy val root = (project in file("."))
         (slicerSbt / Test / fullClasspath).value,
         (sbtTui / Test / fullClasspath).value,
         (tuiViewport / Test / fullClasspath).value,
-        (corpusCheck / Compile / fullClasspath).value
+        (corpusCheck / Compile / fullClasspath).value,
+        (emittedBuildCheck / Test / fullClasspath).value
       ).flatten.map(entry => converter.toPath(entry.data).toAbsolutePath.toString).distinct
       val listing = (ThisBuild / baseDirectory).value / ".claude" / "scala-semantic-classpath.txt"
       IO.write(listing, entries.mkString("\n") + "\n")
@@ -156,7 +160,25 @@ lazy val slicerMill = (project in file("slicer-mill"))
       s"-Dslicer.millCorpus=${(ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test" / "test-project"}",
       s"-Dslicer.millCorpus213=${(ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test" / "test-project-213"}",
       s"-Dslicer.unitProject=${(Test / resourceDirectory).value / "unit-test-project"}"
-    )
+    ),
+    Test / test / tags += forksABuildTool -> 1,
+    Test / testOnly / tags += forksABuildTool -> 1
+  )
+
+lazy val emittedBuildCheck = (project in file("emitted-build-check"))
+  .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(slicerCore % "test->test")
+  .settings(commonSettings)
+  .settings(
+    name := "slicer-emitted-build-check",
+    publish / skip := true,
+    libraryDependencies += "org.scalameta" %% "munit" % munit % Test,
+    Test / fork := true,
+    Test / parallelExecution := false,
+    Test / javaOptions ++= Seq("-Xmx2g", "-Xss4m"),
+    Test / testOptions += Tests.Argument(TestFrameworks.MUnit, "+l"),
+    Test / test / tags += forksABuildTool -> 1,
+    Test / testOnly / tags += forksABuildTool -> 1
   )
 
 lazy val corpusCheck = (project in file("corpus-check"))
