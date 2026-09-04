@@ -13,8 +13,6 @@ Extract compilable vertical slice of Scala codebase from SemanticDB.
 - **Mill picker opens in own process, never daemon**, whose stdout is log and whose `/dev/tty` belongs to whoever started it; `Jvm.callInteractiveProcess` routes it back to launcher with stdio inherited raw, so `./mill slice` works without `--no-daemon`.
 - Picker refuses unless `test -t 0 && test -t 1` passes on its stdio; `System.console()` cannot be that check — stops discriminating on JDK 22+.
 - **Leaving picker must not touch scrollback**; layoutz clears it on exit unless the terminal refuses to.
-- **sbt terminal is own module `sbt-tui`, package `sbt`, depending on no slicer module** — `Terminal.get`, raw mode and `printStream` are `private[sbt]`, and package merely *named* `slicer.sbt` does not count.
-- **Screen decorator, escapes and terminal size tracking are `tui-viewport`, package `tui.viewport`, no slicer or sbt dependency**: layoutz repaints whole frame per tick, so every driver needs the same screen handling and a size to lay out against. Driver measuring size its own way keeps that tracking in its own module, never in a `slicer-*` one.
 
 ## Versions & the example project
 
@@ -62,7 +60,7 @@ Extract compilable vertical slice of Scala codebase from SemanticDB.
 - **Functional by default**: expression-oriented, immutable collections, no early returns.
 - **Name says what thing does**, readable without opening it: verb + object. Bare noun or participle names situation, not action.
 - **One top-level definition per file, file named after it.** Companion shares its class's file. Corpuses keep multi-definition files.
-- **Public API is entry points and `SbtLayoutzApp` only**: `SlicerPlugin`, `SlicerModule` and what their signatures expose. Everything else is `private[slicer]`, or narrower where one package holds it.
+- **Public API is entry points only**: `SlicerPlugin`, `SlicerModule` and what their signatures expose. Everything else is `private[slicer]`, or narrower where one package holds it.
 - **Full-word variables** — `index`, not `idx`. Established short idioms stay: `sym`, `tpe`, `pos`, `out`.
 - **No comments in `.scala`, `.sbt`, `.sh` or `.yml` sources**: the name carries the explanation, and scalafix directives are the only exception. Comments in corpus are data, not documentation — suites assert on them, leave alone.
 - **`README.md` and `CONTRIBUTING.md` are human-written**: say what belongs there and let the maintainer write it. Rules meant for you live here.
