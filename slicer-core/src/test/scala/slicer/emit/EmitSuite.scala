@@ -65,6 +65,44 @@ class EmitSuite extends munit.FunSuite {
     assert(services.contains("case class ServiceView(key: Long)"), services)
   }
 
+  test("a using clause whose parameters all died is dropped with them") {
+    val slice = TestProject.slice("spec.givens.TakesUsingClauseInConstructor.echoesLabel")
+    val givens = slice.file("givens/Givens.scala")
+    assert(givens.contains("class TakesUsingClauseInConstructor(label: String) {"), givens)
+    assert(!givens.contains("(using )"), givens)
+  }
+
+  test("a class whose only clause is a using clause keeps no clause at all") {
+    val givens = TestProject.slice("spec.givens.TakesOnlyAUsingClause.echoesLiteral").file("givens/Givens.scala")
+    assert(givens.contains("class TakesOnlyAUsingClause {"), givens)
+    assert(!givens.contains("(using )"), givens)
+  }
+
+  test("a using clause dropped before a term clause leaves the terms behind it alone") {
+    val givens = TestProject.slice("spec.givens.TakesUsingClauseBeforeTerms.echoesLabel").file("givens/Givens.scala")
+    assert(givens.contains("class TakesUsingClauseBeforeTerms(label: String)(suffix: String) {"), givens)
+    assert(!givens.contains("(using )"), givens)
+  }
+
+  test("two using clauses whose parameters all died are dropped together") {
+    val givens = TestProject.slice("spec.givens.TakesTwoUsingClauses.echoesLabel").file("givens/Givens.scala")
+    assert(givens.contains("class TakesTwoUsingClauses(label: String) {"), givens)
+    assert(!givens.contains("(using )"), givens)
+  }
+
+  test("an anonymous using clause nothing summons from is dropped like a named one") {
+    val slice = TestProject.slice("spec.givens.NeverSummonsAnonymousUsingClause.echoesLabel")
+    val givens = slice.file("givens/Givens.scala")
+    assert(givens.contains("class NeverSummonsAnonymousUsingClause(label: String) {"), givens)
+    assert(!givens.contains("(using )"), givens)
+  }
+
+  test("an anonymous using clause a kept member summons from survives") {
+    val slice = TestProject.slice("spec.givens.SummonsAnonymousUsingClause.rendersLabel")
+    val givens = slice.file("givens/Givens.scala")
+    assert(givens.contains("class SummonsAnonymousUsingClause(label: String)(using TypeClass[String])"), givens)
+  }
+
   test("an importer left with one importee loses its braces") {
     val slice = TestProject.slice("spec.entry.Handler.first")
     val handler = slice.file("entry/Handler.scala")

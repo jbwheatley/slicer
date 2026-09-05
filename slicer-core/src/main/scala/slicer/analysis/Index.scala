@@ -305,7 +305,13 @@ private[slicer] object Index {
     collectOccurrenceOffsets(doc = doc, lines = lines, wanted = _.role.isDefinition)
 
   private def collectDefNodes(tree: Tree, lines: LineIndex, doc: semanticdb.TextDocument, file: Path): Vector[DefNode] =
-    collectDefinitionsInTree(t = tree, owner = None, symbolAt = collectDefinitionOffsets(doc, lines), file = file)
+    collectDefinitionsInTree(
+      t = tree,
+      owner = None,
+      symbolAt = collectDefinitionOffsets(doc, lines),
+      unnamedParams = collectUnnamedConstructorParams(doc),
+      file = file
+    )
 
   private def isExpandedAtCallSite(t: Tree): Boolean = t match {
     case d: Defn.Def   => d.mods.exists(_.is[Mod.Inline])
@@ -414,29 +420,68 @@ private[slicer] object Index {
       }
     )
 
+  private def toConstructorParamNode(param: Term.Param, sym: Symbol, classSymbol: Symbol, file: Path): DefNode =
+    DefNode(
+      sym,
+      DefKind.Param,
+      sym.toDisplayName,
+      file,
+      param.pos.start,
+      param.pos.end,
+      Some(classSymbol),
+      isAbstract = false,
+      expandsAtCallSite = false
+    )
+
   private def toConstructorParamNodes(
       t: Tree,
       classSymbol: Symbol,
       symbolAt: Map[Int, Symbol],
+      unnamedParams: Map[Symbol, Vector[Symbol]],
       file: Path
   ): Vector[DefNode] = t match {
     case d: Defn.Class =>
-      for {
-        clause <- d.ctor.paramClauses.toVector
-        param <- clause.values
-        sym <- symbolAt.get(param.name.pos.start).filterNot(_.isLocalSymbol)
-      } yield DefNode(
-        sym,
-        DefKind.Param,
-        param.name.value,
-        file,
-        param.pos.start,
-        param.pos.end,
-        Some(classSymbol),
-        isAbstract = false,
-        expandsAtCallSite = false
-      )
+      val declared = d.ctor.paramClauses.toVector.flatMap(_.values)
+      val taken = declared.foldLeft(
+        (nodes = Vector.empty[DefNode], unnamed = unnamedParams.getOrElse(classSymbol, Vector.empty))
+      ) { (taken, param) =>
+        val sym =
+          if (param.name.is[Name.Anonymous]) taken.unnamed.headOption
+          else symbolAt.get(param.name.pos.start).filterNot(_.isLocalSymbol)
+
+        (
+          nodes = taken.nodes ++ sym.map(toConstructorParamNode(param, _, classSymbol, file)),
+          unnamed = if (param.name.is[Name.Anonymous]) taken.unnamed.drop(1) else taken.unnamed
+        )
+      }
+      taken.nodes
     case _ => Vector.empty
+  }
+
+  private val UnnamedParamName = """x\$(\d+)""".r
+
+  private def toUnnamedParamOrder(name: String): Option[Int] = name match {
+    case UnnamedParamName(number) => number.toIntOption
+    case _                        => None
+  }
+
+  private def collectUnnamedConstructorParams(doc: semanticdb.TextDocument): Map[Symbol, Vector[Symbol]] = {
+    val declared = doc.symbols.toVector.mapFilter { info =>
+      Option
+        .when(info.kind.isParameter && toUnnamedParamOrder(info.displayName).nonEmpty)(Symbol(info.symbol))
+        .flatMap(_.findParameterFixingOwner.map(_ -> info.displayName))
+    }.toSet
+
+    doc.symbols.toVector
+      .mapFilter { info =>
+        Symbol(info.symbol).findOwnerSymbol
+          .filter(owner => declared.contains(owner -> info.displayName))
+          .map(owner => owner -> (info.displayName, Symbol(info.symbol)))
+      }
+      .groupMap(_._1)(_._2)
+      .view
+      .mapValues(_.sortBy { case (name, _) => toUnnamedParamOrder(name) }.map(_._2))
+      .toMap
   }
 
   private def toExtensionGroupNode(t: Tree, owner: Option[Symbol], file: Path): Option[DefNode] = t match {
@@ -490,6 +535,7 @@ private[slicer] object Index {
       t: Tree,
       owner: Option[Symbol],
       symbolAt: Map[Int, Symbol],
+      unnamedParams: Map[Symbol, Vector[Symbol]],
       file: Path
   ): Vector[DefNode] = if (t.is[Type.Refine]) Vector.empty
   else {
@@ -521,11 +567,23 @@ private[slicer] object Index {
     here.toVector ++
       group.toVector ++
       here.toVector.flatMap(n =>
-        toConstructorParamNodes(t = t, classSymbol = n.symbol, symbolAt = symbolAt, file = file)
+        toConstructorParamNodes(
+          t = t,
+          classSymbol = n.symbol,
+          symbolAt = symbolAt,
+          unnamedParams = unnamedParams,
+          file = file
+        )
       ) ++
       group.toVector.flatMap(g => toBoundNameNodes(t = t, groupSymbol = g.symbol, symbolAt = symbolAt, file = file)) ++
       t.children.toVector.flatMap(child =>
-        collectDefinitionsInTree(t = child, owner = nextOwner, symbolAt = symbolAt, file = file)
+        collectDefinitionsInTree(
+          t = child,
+          owner = nextOwner,
+          symbolAt = symbolAt,
+          unnamedParams = unnamedParams,
+          file = file
+        )
       )
   }
 
