@@ -38,6 +38,15 @@ class Scala213EmitSuite extends munit.FunSuite {
     assertEquals(TestProject213.language, ScalaVersionRules.Scala213Rules)
   }
 
+  test("an implicit clause whose parameters all died is dropped with them") {
+    val implicits =
+      TestProject213
+        .slice("spec.implicits.TakesImplicitClauseInConstructor.echoesLabel")
+        .file("implicits/Implicits.scala")
+    assert(implicits.contains("class TakesImplicitClauseInConstructor(label: String) {"), implicits)
+    assert(!implicits.contains("(implicit )"), implicits)
+  }
+
   test("a block comment above a dropped definition goes with it, whole") {
     val comments = TestProject213.slice("spec.comments.CallsBlockCommented.calls").file("comments/Comments.scala")
     assert(comments.contains("Kept definition documented across lines"), comments)

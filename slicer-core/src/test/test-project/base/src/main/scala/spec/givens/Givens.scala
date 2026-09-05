@@ -59,6 +59,40 @@ object CallsGivensInCompanionScope {
   def sortsWithCompanionOrdering(values: List[HasGivensInCompanion]): List[HasGivensInCompanion] = values.sorted
 }
 
+class TakesUsingClauseInConstructor(label: String)(using renderer: TypeClass[String]) {
+  def rendersLabel: String = renderer.render(label)
+
+  def echoesLabel: String = label
+}
+
+class NeverSummonsAnonymousUsingClause(label: String)(using TypeClass[String]) {
+  def echoesLabel: String = label
+}
+
+class SummonsAnonymousUsingClause(label: String)(using TypeClass[String]) {
+  def rendersLabel: String = summon[TypeClass[String]].render(label)
+}
+
+class TakesOnlyAUsingClause(using renderer: TypeClass[String]) {
+  def rendersLiteral: String = renderer.render("only")
+
+  def echoesLiteral: String = "only"
+}
+
+class TakesUsingClauseBeforeTerms(label: String)(using renderer: TypeClass[String])(suffix: String) {
+  def rendersLabel: String = renderer.render(label)
+
+  def echoesLabel: String = label + suffix
+}
+
+class TakesTwoUsingClauses(label: String)(using renderer: TypeClass[String])(using counter: TypeClass[Int]) {
+  def rendersLabel: String = renderer.render(label)
+
+  def rendersCount: String = counter.render(1)
+
+  def echoesLabel: String = label
+}
+
 trait ContextParameter {
   def value: String
 }

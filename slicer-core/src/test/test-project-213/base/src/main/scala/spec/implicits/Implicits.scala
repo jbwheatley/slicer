@@ -73,6 +73,12 @@ object CallsImplicitsInCompanionScope {
   def sortsWithCompanionOrdering(values: List[HasImplicitsInCompanion]): List[HasImplicitsInCompanion] = values.sorted
 }
 
+class TakesImplicitClauseInConstructor(label: String)(implicit renderer: TypeClass[String]) {
+  def rendersLabel: String = renderer.render(label)
+
+  def echoesLabel: String = label
+}
+
 object OldStyleImplicitParameters {
   implicit val implicitValue: String = "implicit"
 

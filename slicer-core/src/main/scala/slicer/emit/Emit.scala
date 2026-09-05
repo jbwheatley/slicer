@@ -80,11 +80,13 @@ private[emit] object Emit {
       val comments = collectCommentRanges(index = index, file = file)
       val imports = scanImports(index = index, file = file, kept = kept)
 
-      val removals =
+      val dropped =
         roots.flatMap(root =>
           collectRemovals(node = root, children = children, kept = kept, text = text, comments = comments)
         ) ++
           collectDeadImports(imports = imports, text = text)
+
+      val removals = dropped ++ collectEmptiedParamClauses(index = index, file = file, removals = dropped)
 
       val emptied = collectEmptiedBodies(index = index, file = file, removals = removals)
 
@@ -191,6 +193,22 @@ private[emit] object Emit {
     }
 
   private def isSeparatorsOnly(between: String): Boolean = between.forall(c => c.isWhitespace || c === ',')
+
+  private def collectEmptiedParamClauses(index: Index, file: Path, removals: Vector[Removal]): Vector[Removal] =
+    index.trees.get(file) match {
+      case Some(tree) =>
+        tree
+          .collect { case d: Defn.Class => d.ctor.paramClauses.toVector }
+          .flatten
+          .toVector
+          .collect {
+            case clause
+                if clause.mod.nonEmpty && clause.values.nonEmpty &&
+                  clause.values.forall(param => isRemoved(param, removals)) =>
+              Removal.Block(from = clause.pos.start, to = clause.pos.end)
+          }
+      case None => Vector.empty
+    }
 
   private def collectEmptiedBodies(index: Index, file: Path, removals: Vector[Removal]): Vector[Edit] =
     index.trees.get(file) match {
