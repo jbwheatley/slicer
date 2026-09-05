@@ -231,4 +231,106 @@ class ReachabilitySuite extends munit.FunSuite {
     assert(kept.contains("spec.bindings.FixesMutableMember.declaredVar"), kept.toString)
   }
 
+  test("a summon through an exported given reaches the instance behind the forwarder") {
+    val kept = keptNames(TestProject.slice("spec.exports.CallsExportedGiven.encodesInt"))
+    assert(kept.contains("spec.exports.ExportedInstances.exportedIntInstance"), kept.toString)
+    assert(kept.contains("spec.exports.ExportedTypeClass.encode"), kept.toString)
+  }
+
+  test("a conversion imported from another package is kept") {
+    val kept = keptNames(TestProject.slice("spec.conversionusers.CallsImportedConversion.convertsAcrossPackages"))
+    assert(kept.contains("spec.conversions.LengthConversions.lengthOfString"), kept.toString)
+  }
+
+  test("a conversion given written with a body is kept with the apply that converts") {
+    val kept = keptNames(TestProject.slice("spec.conversionusers.CallsImportedConversion.wrapsAcrossPackages"))
+    assert(kept.contains("spec.conversions.LengthConversions.wrapsLength"), kept.toString)
+    assert(kept.contains("spec.conversions.LengthConversions.wrapsLength.apply"), kept.toString)
+  }
+
+  test("a lambda passed as an argument keeps the abstract member it implements") {
+    val kept = keptNames(TestProject.slice("spec.sam.PassesLambdaAsArgument.passesLambda"))
+    assert(kept.contains("spec.sam.Transformer.transform"), kept.toString)
+    val slice = TestProject.slice("spec.sam.PassesLambdaAsArgument.passesLambdaWithDefault")
+    assert(keptNames(slice).contains("spec.sam.TransformerWithDefault.transform"), keptNames(slice).toString)
+    assert(slice.file("sam/Sam.scala").contains("def transform(value: String): String"), slice.file("sam/Sam.scala"))
+  }
+
+  test("a given keeps the concrete members the type it implements defines") {
+    val kept = keptNames(TestProject.slice("spec.givenparents.DescriberInstances.intDescriber"))
+    assert(kept.contains("spec.givenparents.Describer.describeAll"), kept.toString)
+    val fromClass = keptNames(TestProject.slice("spec.givenparents.DescribesLongs"))
+    assert(fromClass.contains("spec.givenparents.Describer.describeAll"), fromClass.toString)
+  }
+
+  test("a top-level inline definition keeps the givens in scope at its definition") {
+    val kept = keptNames(TestProject.slice("spec.toplevelinline.TopLevelInline$package.encodesAtTopLevel"))
+    assert(kept.contains("spec.toplevelinline.TopLevelInline$package.encoderForInt"), kept.toString)
+    assert(kept.contains("spec.toplevelinline.Encoder.encode"), kept.toString)
+  }
+
+  test("an infix extractor pattern keeps the unapply behind it") {
+    val kept = keptNames(TestProject.slice("spec.patterns.MatchesInfixExtractor.matchesInfix"))
+    assert(kept.contains("spec.patterns.Joined.unapply"), kept.toString)
+  }
+
+  test("a call into a nested Java type keeps the file that declares it") {
+    val slice = TestProject.slice("spec.javacalls.CallsNestedJava.describesInner")
+    assert(slice.file("javadefs/Outer.java").contains("public static final class Inner"))
+    assert(slice.file("javadefs/tools/Formatter.java").contains("public static String format"))
+  }
+
+  test("a call on a Java enum keeps the enum") {
+    val slice = TestProject.slice("spec.javacalls.CallsNestedJava.labelOfStatus")
+    assert(slice.file("javadefs/Status.java").contains("public String label()"))
+  }
+
+  test("a refinement member is kept with the type that carries it") {
+    val slice = TestProject.slice("spec.refinements.ReadsRefinedMember.readsRefined")
+    val refinements = slice.file("refinements/RefinedMembers.scala")
+    assert(refinements.contains("HasStore { def extra: String }"), refinements)
+    assert(keptNames(slice).contains("spec.refinements.HasStore.stored"), keptNames(slice).toString)
+  }
+
+  test("a fully qualified parent is kept with the members it defines") {
+    val kept = keptNames(TestProject.slice("spec.qualified.ExtendsQualifiedParent.storeName"))
+    assert(kept.contains("spec.inheritance.HasStoreName.lazyBanner"), kept.toString)
+  }
+
+  test("an intersection self-type keeps the members of both types it names") {
+    val kept = keptNames(TestProject.slice("spec.qualified.MixesIntersectionSelfType.mixed"))
+    assert(kept.contains("spec.qualified.FirstMixin.first"), kept.toString)
+    assert(kept.contains("spec.qualified.SecondMixin.second"), kept.toString)
+  }
+
+  test("an interpolated pattern keeps the extractor behind it") {
+    val kept = keptNames(TestProject.slice("spec.interpolators.MatchesInterpolatedPattern.matchesSegments"))
+    assert(kept.contains("spec.interpolators.PathInterpolator.SegmentContext.segment.unapplySeq"), kept.toString)
+  }
+
+  test("an abstract type member nothing names is pruned with the members that named it") {
+    val slice = TestProject.slice(
+      "spec.abstracttypes.HasTwoTypeMembers.reads",
+      SliceOptions(followImplementations = false, keepFields = false)
+    )
+    val types = slice.file("abstracttypes/AbstractTypeMembers.scala")
+    assert(types.contains("type UsedType"), types)
+    assert(!types.contains("type UnusedType"), types)
+    assert(!types.contains("def writes"), types)
+  }
+
+  test("an abstract type member is kept with the implementation that binds it") {
+    val types = TestProject
+      .slice("spec.abstracttypes.CallsUsedTypeMember.calls")
+      .file("abstracttypes/AbstractTypeMembers.scala")
+    assert(types.contains("type UsedType = String"), types)
+    assert(!types.contains("def writes"), types)
+  }
+
+  test("reading one of two names bound in a class body keeps the definition that binds both") {
+    val body = TestProject.slice("spec.bindings.CallsBindsInClassBody.calls").file("bindings/BoundInClass.scala")
+    assert(body.contains("val (firstField, secondField) = (seed, seed + 1)"), body)
+    assert(!body.contains("thirdField"), body)
+  }
+
 }

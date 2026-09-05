@@ -99,4 +99,32 @@ class Scala213ReachabilitySuite extends munit.FunSuite {
     assert(body.contains("def this(label: String) = this(label, 1)"), body)
   }
 
+  test("an implicit conversion imported from another package is kept") {
+    val kept = keptNames(TestProject213.slice("spec.conversionusers.CallsImportedConversion.convertsAcrossPackages"))
+    assert(kept.contains("spec.conversions.ConversionsInScope.convertsStringToLength"), kept.toString)
+  }
+
+  test("a lambda passed as an argument keeps the single abstract method it implements") {
+    val kept = keptNames(TestProject213.slice("spec.sam.PassesSamArgument.passesLambda"))
+    assert(kept.contains("spec.sam.SingleAbstractMethod.transform"), kept.toString)
+    val withDefault = keptNames(TestProject213.slice("spec.sam.PassesSamArgument.passesLambdaWithDefault"))
+    assert(withDefault.contains("spec.sam.SingleAbstractMethodWithDefault.transform"), withDefault.toString)
+  }
+
+  test("an infix extractor pattern keeps the Scala 2 unapply behind it") {
+    val kept = keptNames(TestProject213.slice("spec.patterns.MatchesInfixExtractor.matchesInfix"))
+    assert(kept.contains("spec.patterns.Joined.unapply"), kept.toString)
+  }
+
+  test("a Scala 2 call into a nested Java type keeps the file that declares it") {
+    val slice = TestProject213.slice("spec.javacalls.CallsNestedJava.describesInner")
+    assert(slice.file("javadefs/Outer.java").contains("public static final class Inner"))
+    assert(slice.file("javadefs/tools/Formatter.java").contains("public static String format"))
+  }
+
+  test("a Scala 2 call on a Java enum keeps the enum") {
+    val slice = TestProject213.slice("spec.javacalls.CallsNestedJava.labelOfStatus")
+    assert(slice.file("javadefs/Status.java").contains("public String label()"))
+  }
+
 }

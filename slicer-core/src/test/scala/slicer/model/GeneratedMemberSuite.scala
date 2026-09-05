@@ -23,12 +23,16 @@ class GeneratedMemberSuite extends munit.FunSuite {
       GeneratedMember.constructionEntries.map(_.memberName),
       Vector("apply", "unapply", "unapplyVector", "copy")
     )
-    assertEquals(GeneratedMember.factoryEntries.map(_.memberName), Vector("apply", "unapply", "unapplyVector"))
+    assertEquals(
+      GeneratedMember.factoryEntries.map(_.memberName),
+      Vector("apply", "unapply", "unapplySeq", "unapplyVector")
+    )
   }
 
   test("a factory entry is recognised by name, and copy is not one") {
     assert(GeneratedMember.isFactoryEntry("apply"))
     assert(GeneratedMember.isFactoryEntry("unapply"))
+    assert(GeneratedMember.isFactoryEntry("unapplySeq"))
     assert(GeneratedMember.isFactoryEntry("unapplyVector"))
     assert(!GeneratedMember.isFactoryEntry("copy"))
     assert(!GeneratedMember.isFactoryEntry("derived"))

@@ -92,18 +92,20 @@ private[slicer] object Reachability {
         }
       }
 
+    private def findDefinitionScope(node: DefNode): Set[DefNode] =
+      node.owner match {
+        case Some(owner) =>
+          val scopes =
+            index.instantiations.getOrElse(owner, Set.empty) ++
+              index.structuralUses.getOrElse(owner, Set.empty) + owner
+          scopes.flatMap(scope => index.membersByOwner.getOrElse(scope, Set.empty))
+        case None => index.byPackage.getOrElse(node.symbol.toPackagePrefix, Vector.empty).toSet
+      }
+
     private def keepGivensInScope(node: DefNode): Walk =
       if (!node.expandsAtCallSite) this
-      else {
-        val scopes = node.owner.toSet.flatMap { (owner: Symbol) =>
-          index.instantiations.getOrElse(owner, Set.empty) ++ index.structuralUses.getOrElse(owner, Set.empty) + owner
-        }
-        scopes.foldLeft(this) { (reached, scope) =>
-          reached.enqueueAll(index.membersByOwner.getOrElse(scope, Set.empty).collect {
-            case m if m.kind === DefKind.Given => m.symbol
-          })
-        }
-      }
+      else
+        enqueueAll(findDefinitionScope(node).collect { case m if m.kind === DefKind.Given => m.symbol })
 
     private def keepReflectivelyNamedMembers(symbol: Symbol): Walk =
       if (!index.reflectiveTargets.contains(symbol)) this
@@ -207,10 +209,18 @@ private[slicer] object Reachability {
 
     def keepReachableConversions: Walk = {
       val touchedPackages = kept.map(_.toPackagePrefix)
+      val importedScopes = for {
+        symbol <- kept
+        node <- index.defs.get(symbol).toSet
+        scope <- index.importedGivenScopesByFile.getOrElse(node.file, Set.empty)
+      } yield scope
       enqueueAll(
         index
           .symbolsWithFlag(DefFlag.ConversionGiven)
-          .filter(conversion => touchedPackages.contains(conversion.toPackagePrefix))
+          .filter(conversion =>
+            touchedPackages.contains(conversion.toPackagePrefix) ||
+              conversion.findOwnerSymbol.exists(importedScopes.contains)
+          )
       )
     }
 

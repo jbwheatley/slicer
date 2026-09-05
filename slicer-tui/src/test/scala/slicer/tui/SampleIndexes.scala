@@ -133,6 +133,7 @@ object SampleIndexes {
     derivations = Map.empty,
     factoryTargets = Map.empty,
     exports = Map.empty,
+    importedGivenScopesByFile = Map.empty,
     flags = Map.empty,
     macroImplementations = Set.empty,
     reflectiveTargets = Set.empty,
