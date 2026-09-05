@@ -44,6 +44,7 @@ private[slicer] final case class Index(
     derivations: Map[Symbol, Set[String]],
     factoryTargets: Map[Symbol, Set[Symbol]],
     exports: Map[Symbol, Set[Symbol]],
+    importedGivenScopesByFile: Map[Path, Set[Symbol]],
     flags: Map[Symbol, Set[DefFlag]],
     macroImplementations: Set[Symbol],
     reflectiveTargets: Set[Symbol],
@@ -96,6 +97,12 @@ private[slicer] object Index {
   private def groupByOwner[A](pairs: Vector[(Symbol, A)]): Map[Symbol, Set[A]] =
     pairs.groupMap(_._1)(_._2).map { case (owner, targets) => owner -> targets.toSet }
 
+  private enum ExportSelector {
+    case Named(name: String)
+    case EveryMember
+    case EveryGiven
+  }
+
   private final case class FileData(
       file: Path,
       text: String,
@@ -107,7 +114,8 @@ private[slicer] object Index {
       structuralUses: Vector[(Symbol, Symbol)],
       derivations: Vector[(Symbol, String)],
       factoryTargets: Vector[(Symbol, Symbol)],
-      exportRequests: Vector[(Symbol, String, String)],
+      exportRequests: Vector[(Symbol, String, ExportSelector)],
+      importedGivenScopes: Vector[Symbol],
       reflectiveNames: Vector[(Symbol, String)],
       flags: Vector[(Symbol, DefFlag)],
       macroImplementations: Vector[Symbol]
@@ -162,6 +170,7 @@ private[slicer] object Index {
       derivations = groupByOwner(facts.flatMap(_.derivations)),
       factoryTargets = groupByOwner(facts.flatMap(_.factoryTargets)),
       exports = resolveExports(exportRequests, underOwnerName),
+      importedGivenScopesByFile = facts.map(f => f.file -> f.importedGivenScopes.toSet).toMap,
       flags = groupByOwner(facts.flatMap(_.flags)),
       macroImplementations = facts.flatMap(_.macroImplementations).toSet,
       reflectiveTargets = reflective.map(_._2).toSet,
@@ -265,6 +274,7 @@ private[slicer] object Index {
             derivations = derived,
             factoryTargets = collectFactoryCalls(tree = tree, referenceAt = referenceAt, enclosing = enclosing),
             exportRequests = collectExports(tree, enclosing),
+            importedGivenScopes = collectImportedGivenScopes(tree = tree, referenceAt = referenceAt),
             reflectiveNames = collectReflectiveNames(tree = tree, enclosing = enclosing),
             flags = collectDefFlags(
               conversions = rules.collectConversions(tree, symbolAtStart),
@@ -337,6 +347,7 @@ private[slicer] object Index {
     case d: Defn.Trait      => Some((DefKind.Trait, d.name.pos))
     case d: Defn.Object     => Some((DefKind.Object, d.name.pos))
     case d: Defn.Type       => Some((DefKind.Type, d.name.pos))
+    case d: Decl.Type       => Some((DefKind.Type, d.name.pos))
     case d: Pkg.Object      => Some((DefKind.Object, d.name.pos))
     case d: Defn.Given      => Some((DefKind.Given, d.name.pos))
     case d: Defn.GivenAlias => Some((DefKind.Given, d.name.pos))
@@ -684,6 +695,13 @@ private[slicer] object Index {
             at = d.pos,
             templ = d.templ
           )
+        case d: Defn.Given =>
+          collectDeclaredSupertypes(
+            referenceAt = referenceAt,
+            symbolAtStart = symbolAtStart,
+            at = d.pos,
+            templ = d.templ
+          )
       }
       .flatten
       .toVector
@@ -702,7 +720,9 @@ private[slicer] object Index {
     }
 
   private def typeNameStartOffset(tpe: Type): Int = tpe match {
-    case Type.Apply.After_4_6_0(t, _) => t.pos.start
+    case Type.Apply.After_4_6_0(t, _) => typeNameStartOffset(t)
+    case Type.Select(_, name)         => name.pos.start
+    case Type.Project(_, name)        => name.pos.start
     case other                        => other.pos.start
   }
 
@@ -804,6 +824,10 @@ private[slicer] object Index {
         case Term.Apply.After_4_6_0(fn, _) => referenceAt.get(calleeNameStartOffset(fn)).map(sym => (fn.pos.start, sym))
         case Pat.Extract.After_4_6_0(fn, _) =>
           referenceAt.get(calleeNameStartOffset(fn)).map(sym => (fn.pos.start, sym))
+        case extracted: Pat.ExtractInfix =>
+          referenceAt.get(extracted.op.pos.start).map(sym => (extracted.op.pos.start, sym))
+        case interpolated: Pat.Interpolate =>
+          referenceAt.get(interpolated.prefix.pos.start).map(sym => (interpolated.prefix.pos.start, sym))
       }
       .flatten
       .toVector
@@ -817,60 +841,97 @@ private[slicer] object Index {
     case other                => other.pos.start
   }
 
-  private def collectExports(tree: Tree, enclosing: EnclosingNodes): Vector[(Symbol, String, String)] = {
+  private def collectExports(tree: Tree, enclosing: EnclosingNodes): Vector[(Symbol, String, ExportSelector)] = {
     val requested = tree
       .collect { case e: Export =>
         for {
           importer <- e.importers.toVector
           prefix = Symbol.takeLastSegment(importer.ref.syntax)
-          named <- importer.importees.collect {
-            case Importee.Name(n)      => n.value
-            case Importee.Rename(n, _) => n.value
-            case _: Importee.Wildcard  => everyMember
+          selected <- importer.importees.collect {
+            case Importee.Name(n)      => ExportSelector.Named(n.value)
+            case Importee.Rename(n, _) => ExportSelector.Named(n.value)
+            case _: Importee.Wildcard  => ExportSelector.EveryMember
+            case _: Importee.GivenAll  => ExportSelector.EveryGiven
+            case _: Importee.Given     => ExportSelector.EveryGiven
           }
-        } yield e.pos.start -> (prefix, named)
+        } yield e.pos.start -> (prefix, selected)
       }
       .flatten
       .toVector
 
-    enclosing.attributeToOwners(requested).map { case (owner, (prefix, named)) => (owner, prefix, named) }
+    enclosing.attributeToOwners(requested).map { case (owner, (prefix, selected)) => (owner, prefix, selected) }
   }
 
-  private val everyMember = "*"
+  private def importsGivens(importer: Importer): Boolean =
+    importer.importees.exists {
+      case _: Importee.GivenAll => true
+      case _: Importee.Given    => true
+      case _                    => false
+    }
+
+  private def collectImportedGivenScopes(tree: Tree, referenceAt: Map[Int, Symbol]): Vector[Symbol] =
+    tree
+      .collect {
+        case importer: Importer if importsGivens(importer) =>
+          referenceAt.get(calleeNameStartOffset(importer.ref))
+      }
+      .flatten
+      .toVector
 
   private def groupMembersByOwnerName(defs: Map[Symbol, DefNode]): Map[String, Vector[DefNode]] =
     defs.values.toVector.mapFilter(node => node.owner.flatMap(defs.get).map(_.displayName -> node)).groupMap(_._1)(_._2)
+
+  private def namesExportTarget(selector: ExportSelector, node: DefNode): Boolean = selector match {
+    case ExportSelector.Named(name) => node.displayName === name
+    case _                          => false
+  }
+
+  private def selects(selector: ExportSelector, node: DefNode): Boolean = selector match {
+    case ExportSelector.Named(name) => node.displayName === name
+    case ExportSelector.EveryMember => true
+    case ExportSelector.EveryGiven  => node.kind === DefKind.Given
+  }
 
   private def findExportedMembers(
       underOwnerName: Map[String, Vector[DefNode]],
       owner: Symbol,
       prefix: String,
-      member: String
+      selected: ExportSelector
   ): Vector[DefNode] =
     underOwnerName
       .getOrElse(prefix, Vector.empty)
-      .filter(node => (member === everyMember || node.displayName === member) && !node.owner.contains(owner))
+      .filter(node => selects(selected, node) && !node.owner.contains(owner))
 
   private def buildForwarderMap(
-      requests: Vector[(Symbol, String, String)],
+      requests: Vector[(Symbol, String, ExportSelector)],
       underOwnerName: Map[String, Vector[DefNode]]
-  ): Map[Symbol, Symbol] =
-    requests.flatMap { case (owner, prefix, member) =>
-      findExportedMembers(underOwnerName = underOwnerName, owner = owner, prefix = prefix, member = member)
-        .mapFilter(node =>
-          node.symbol.findOwnerSymbol
-            .map(exporting => Symbol(owner.value + node.symbol.value.stripPrefix(exporting.value)) -> node.symbol)
-        )
-    }.toMap
+  ): Map[Symbol, Symbol] = {
+    val forwarded = for {
+      (owner, prefix, selected) <- requests
+      node <- findExportedMembers(underOwnerName = underOwnerName, owner = owner, prefix = prefix, selected = selected)
+      exporting <- node.symbol.findOwnerSymbol.toVector
+      forwarder <- buildForwarderSymbols(owner = owner, exporting = exporting, member = node.symbol)
+    } yield forwarder -> node.symbol
+
+    forwarded.toMap
+  }
+
+  private def buildForwarderSymbols(owner: Symbol, exporting: Symbol, member: Symbol): Vector[Symbol] = {
+    val forwarded = owner.value + member.value.stripPrefix(exporting.value)
+    Symbol(forwarded) +:
+      Option
+        .when(forwarded.endsWith(".") && !forwarded.endsWith(")."))(Symbol(forwarded.dropRight(1) + "()."))
+        .toVector
+  }
 
   private def resolveExports(
-      requests: Vector[(Symbol, String, String)],
+      requests: Vector[(Symbol, String, ExportSelector)],
       underOwnerName: Map[String, Vector[DefNode]]
   ): Map[Symbol, Set[Symbol]] =
-    requests.foldMap { case (owner, prefix, member) =>
+    requests.foldMap { case (owner, prefix, selected) =>
       val targets = underOwnerName
         .getOrElse(prefix, Vector.empty)
-        .collect { case node if node.displayName === member => node.symbol }
+        .collect { case node if namesExportTarget(selected, node) => node.symbol }
         .toSet
       if (targets.isEmpty) Map.empty[Symbol, Set[Symbol]] else Map(owner -> targets)
     }

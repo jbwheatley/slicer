@@ -22,6 +22,7 @@ import cats.syntax.eq.*
 private[slicer] enum GeneratedMember(val memberName: String) {
   case Apply extends GeneratedMember("apply")
   case Unapply extends GeneratedMember("unapply")
+  case UnapplySeq extends GeneratedMember("unapplySeq")
   case UnapplyVector extends GeneratedMember("unapplyVector")
   case Copy extends GeneratedMember("copy")
   case Derived extends GeneratedMember("derived")
@@ -33,7 +34,7 @@ private[slicer] object GeneratedMember {
 
   val constructionEntries: Vector[GeneratedMember] = Vector(Apply, Unapply, UnapplyVector, Copy)
 
-  val factoryEntries: Vector[GeneratedMember] = Vector(Apply, Unapply, UnapplyVector)
+  val factoryEntries: Vector[GeneratedMember] = Vector(Apply, Unapply, UnapplySeq, UnapplyVector)
 
   def isFactoryEntry(memberName: String): Boolean = factoryEntries.exists(_.memberName === memberName)
 

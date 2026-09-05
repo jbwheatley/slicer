@@ -340,6 +340,8 @@ private[emit] object Emit {
       case Importee.Name(n)      => isDeadName(index = index, kept = kept, prefix = prefix, name = n.value)
       case Importee.Rename(n, _) => isDeadName(index = index, kept = kept, prefix = prefix, name = n.value)
       case _: Importee.Wildcard  => isDeadOwner(index = index, kept = kept, prefix = prefix)
+      case _: Importee.GivenAll  => isDeadOwner(index = index, kept = kept, prefix = prefix)
+      case _: Importee.Given     => isDeadOwner(index = index, kept = kept, prefix = prefix)
       case _                     => false
     }
 
