@@ -35,7 +35,7 @@ We support Scala 2.13, 3, as well as JS and native builds.
 
 ### sbt
 
-N.B. We only support sbt 2.x.
+Supports sbt 1 and 2. 
 
 Add the slicer sbt plugin in `plugins.sbt`: 
 
