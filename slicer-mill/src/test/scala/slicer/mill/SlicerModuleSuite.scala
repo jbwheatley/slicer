@@ -16,7 +16,7 @@
 
 package slicer.mill
 
-import slicer.model.{Platform, SliceOptions}
+import slicer.model.{Platform, SliceArguments, SliceOptions}
 
 import mill.api.Task
 import mill.api.Task.Simple

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package slicer.mill
+package slicer.model
 
 import java.nio.file.{Path, Paths}
 
-import slicer.model.*
+import slicer.compat.ArgumentUtil.*
 
 import cats.syntax.either.*
 import cats.syntax.traverse.*
@@ -27,48 +27,42 @@ private[slicer] object SliceArguments {
 
   type Fields = Vector[(String, String)]
 
-  private val sourceRootKey = "source-root"
-  private val outKey = "out"
-  private val semanticdbKey = "semanticdb"
-  private val sourceDirKey = "source-dir"
-  private val scalaVersionKey = "scala-version"
-  private val millVersionKey = "mill-version"
-  private val dependencyKey = "dependency"
-  private val scalacOptionKey = "scalac-option"
-  private val platformKey = "platform"
-  private val platformVersionKey = "platform-version"
-  private val queryKey = "query"
-  private val followImplementationsKey = "follow-implementations"
-  private val keepFieldsKey = "keep-fields"
-
-  private val jvmPlatform = "jvm"
-  private val scalaJsPlatform = "scala-js"
-  private val scalaNativePlatform = "scala-native"
-
   def renderAsArgs(
       sourceRoot: Path,
       out: Path,
       semanticdbDirs: Vector[Path],
       sourceDirs: Vector[Path],
-      tool: BuildTool.Mill,
+      tool: BuildTool,
       query: String,
       options: SliceOptions
   ): Vector[String] =
-    Vector(
-      s"$sourceRootKey=$sourceRoot",
-      s"$outKey=$out",
-      s"$scalaVersionKey=${tool.scalaVersion}",
-      s"$millVersionKey=${tool.millVersion}",
-      s"$platformKey=${toPlatformName(tool.platform)}",
-      s"$platformVersionKey=${toPlatformVersion(tool.platform)}",
-      s"$queryKey=$query",
-      s"$followImplementationsKey=${options.followImplementations}",
-      s"$keepFieldsKey=${options.keepFields}"
-    ) ++
-      semanticdbDirs.map(directory => s"$semanticdbKey=$directory") ++
-      sourceDirs.map(directory => s"$sourceDirKey=$directory") ++
-      tool.dependencies.map(dependency => s"$dependencyKey=${dependency.renderAsText}") ++
-      tool.scalacOptions.map(option => s"$scalacOptionKey=$option")
+    renderRequestFields(
+      sourceRoot = sourceRoot,
+      out = out,
+      tool = toToolName(tool),
+      toolVersion = toToolVersion(tool),
+      scalaVersion = tool.scalaVersion,
+      platform = toPlatformName(tool.platform),
+      platformVersion = toPlatformVersion(tool.platform),
+      semanticdbDirs = semanticdbDirs,
+      sourceDirs = sourceDirs,
+      dependencies = tool.dependencies.map(dependency => dependency.renderAsText),
+      scalacOptions = tool.scalacOptions
+    ) ++ Vector(
+      renderQuery(query),
+      renderField(followImplementationsKey, options.followImplementations.toString),
+      renderField(keepFieldsKey, options.keepFields.toString)
+    )
+
+  private def toToolName(tool: BuildTool): String = tool match {
+    case _: BuildTool.Sbt  => sbtTool
+    case _: BuildTool.Mill => millTool
+  }
+
+  private def toToolVersion(tool: BuildTool): String = tool match {
+    case sbt: BuildTool.Sbt   => sbt.sbtVersion
+    case mill: BuildTool.Mill => mill.millVersion
+  }
 
   def toFields(args: Vector[String]): Either[SliceFailure, Fields] = {
     val arguments = args.filter(_.nonEmpty)
@@ -93,18 +87,34 @@ private[slicer] object SliceArguments {
 
   def readQuery(fields: Fields): String = fields.collectFirst { case (`queryKey`, value) => value }.getOrElse("")
 
-  def readBuildTool(fields: Fields): Either[SliceFailure, BuildTool.Mill] =
+  def readBuildTool(fields: Fields): Either[SliceFailure, BuildTool] =
     for {
+      tool <- readValue(fields, toolKey)
       scalaVersion <- readValue(fields, scalaVersionKey)
-      millVersion <- readValue(fields, millVersionKey)
+      toolVersion <- readValue(fields, toolVersionKey)
       dependencies <- readValues(fields, dependencyKey).traverse(Dependency.parse)
-    } yield BuildTool.Mill(
-      scalaVersion = scalaVersion,
-      millVersion = millVersion,
-      dependencies = dependencies,
-      scalacOptions = readValues(fields, scalacOptionKey),
-      platform = readPlatform(fields)
-    )
+      built <- toBuildTool(
+        tool = tool,
+        scalaVersion = scalaVersion,
+        toolVersion = toolVersion,
+        dependencies = dependencies,
+        scalacOptions = readValues(fields, scalacOptionKey),
+        platform = readPlatform(fields)
+      )
+    } yield built
+
+  private def toBuildTool(
+      tool: String,
+      scalaVersion: String,
+      toolVersion: String,
+      dependencies: Vector[Dependency],
+      scalacOptions: Vector[String],
+      platform: Platform
+  ): Either[SliceFailure, BuildTool] = tool match {
+    case `sbtTool`  => Right(BuildTool.Sbt(scalaVersion, toolVersion, dependencies, scalacOptions, platform))
+    case `millTool` => Right(BuildTool.Mill(scalaVersion, toolVersion, dependencies, scalacOptions, platform))
+    case unknown    => Left(SliceFailure(s"slice request names an unknown build tool: $unknown"))
+  }
 
   def readOptions(fields: Fields): Either[SliceFailure, SliceOptions] =
     for {

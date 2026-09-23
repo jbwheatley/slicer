@@ -16,9 +16,8 @@
 
 package slicer.mill
 
-import slicer.analysis.ScalaVersionRules
-import slicer.emit.WrittenSlices
-import slicer.model.{BuildTool, DependencyScope, Platform, SliceOptions}
+import slicer.compat.{ArgumentUtil, BuildUtil, FileUtil}
+import slicer.model.*
 
 import mill.*
 import mill.api.JsonFormatters.given
@@ -33,8 +32,7 @@ trait SlicerModule extends ScalaModule {
   def sliceOptions: SliceOptions = SliceOptions.default
 
   override protected def semanticDbEnablePluginScalacOptions: T[Seq[String]] = Task {
-    super.semanticDbEnablePluginScalacOptions() ++
-      ScalaVersionRules.rulesForScalaVersion(scalaVersion()).semanticdbOptions
+    super.semanticDbEnablePluginScalacOptions() ++ BuildUtil.semanticdbOptionsForScalaVersion(scalaVersion())
   }
 
   private def sliceModules: Seq[ScalaModule] = this +: recursiveModuleDeps.collect { case module: ScalaModule =>
@@ -48,8 +46,9 @@ trait SlicerModule extends ScalaModule {
       case Left(error) => Task.fail(error)
       case Right(classPath) =>
         Jvm.callInteractiveProcess(
-          mainClass = MillSlicePicker.mainClass,
+          mainClass = ArgumentUtil.pickerMainClass,
           classPath = classPath.map(os.Path(_)),
+          jvmArgs = ArgumentUtil.pickerJvmOptions,
           mainArgs = arguments,
           cwd = mill.api.BuildCtx.workspaceRoot
         ) match {
@@ -61,8 +60,8 @@ trait SlicerModule extends ScalaModule {
 
   def sliceClear(): Command[Unit] = Task.Command {
     val out = sliceDestination().toNIO
-    WrittenSlices.clearWrittenSlices(out) match {
-      case Left(error)     => Task.fail(error.getMessage + error.cause.fold("")(th => s": ${th.getMessage}"))
+    FileUtil.clearWrittenSlices(out) match {
+      case Left(error)     => Task.fail(error)
       case Right(messages) => messages.foreach(Task.log.info(_))
     }
   }
@@ -84,13 +83,13 @@ trait SlicerModule extends ScalaModule {
       tool = BuildTool.Mill(
         scalaVersion = scalaVersion(),
         millVersion = mill.api.BuildInfo.millVersion,
-        dependencies = MillSliceInputs
+        dependencies = MillDependencies
           .collectDependencies(Task.traverse(sliceModules)(_.mvnDeps)().flatten, DependencyScope.Compile) ++
-          MillSliceInputs.collectDependencies(
+          MillDependencies.collectDependencies(
             Task.traverse(sliceModules)(_.compileMvnDeps)().flatten,
             DependencyScope.Provided
           ) ++
-          MillSliceInputs.collectDependencies(
+          MillDependencies.collectDependencies(
             Task.traverse(sliceModules)(_.scalacPluginMvnDeps)().flatten,
             DependencyScope.Plugin
           ),

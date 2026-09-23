@@ -18,6 +18,8 @@ package slicer.model
 
 import java.util.regex.Pattern
 
+import slicer.compat.ArgumentUtil.*
+
 import cats.syntax.eq.*
 
 private[slicer] final case class Dependency(
@@ -76,20 +78,46 @@ private[slicer] final case class Dependency(
   }
 
   def renderAsText: String =
-    Vector(organization, artifact, version, crossVersion.toString, scope.toString, platformed.toString)
-      .mkString(Dependency.fieldSeparator)
+    Vector(
+      organization,
+      artifact,
+      version,
+      Dependency.toCrossVersionToken(crossVersion),
+      Dependency.toScopeToken(scope),
+      platformed.toString
+    ).mkString(dependencyFieldSeparator)
 }
 
 private[slicer] object Dependency {
 
-  private val fieldSeparator: String = "|"
+  private def toCrossVersionToken(crossVersion: CrossVersion): String = crossVersion match {
+    case CrossVersion.Disabled => disabledCrossVersion
+    case CrossVersion.Binary   => binaryCrossVersion
+    case CrossVersion.Full     => fullCrossVersion
+  }
+
+  private def toScopeToken(scope: DependencyScope): String = scope match {
+    case DependencyScope.Compile  => compileScope
+    case DependencyScope.Provided => providedScope
+    case DependencyScope.Plugin   => pluginScope
+  }
 
   def parse(text: String): Either[SliceFailure, Dependency] =
-    text.split(Pattern.quote(fieldSeparator), -1).toVector match {
+    text.split(Pattern.quote(dependencyFieldSeparator), -1).toVector match {
       case Vector(organization, artifact, version, crossVersion, scope, platformed) =>
         for {
-          cross <- findTokenType(all = CrossVersion.values.toVector, token = crossVersion, desc = "cross-version")
-          declared <- findTokenType(all = DependencyScope.values.toVector, token = scope, desc = "scope")
+          cross <- findTokenType(
+            all = CrossVersion.values.toVector,
+            render = toCrossVersionToken,
+            token = crossVersion,
+            desc = "cross-version"
+          )
+          declared <- findTokenType(
+            all = DependencyScope.values.toVector,
+            render = toScopeToken,
+            token = scope,
+            desc = "scope"
+          )
           resolves <- platformed.toBooleanOption.toRight(
             SliceFailure(s"dependency has an unreadable platform flag: $platformed")
           )
@@ -104,8 +132,13 @@ private[slicer] object Dependency {
       case fields => Left(SliceFailure(s"dependency has ${fields.size} fields rather than 6: $text"))
     }
 
-  private def findTokenType[A](all: Vector[A], token: String, desc: String): Either[SliceFailure, A] =
-    all.find(_.toString === token).toRight(SliceFailure(s"dependency has an unknown $desc: $token"))
+  private def findTokenType[A](
+      all: Vector[A],
+      render: A => String,
+      token: String,
+      desc: String
+  ): Either[SliceFailure, A] =
+    all.find(value => render(value) === token).toRight(SliceFailure(s"dependency has an unknown $desc: $token"))
 
   def sortDependencies(dependencies: Seq[Dependency]): Vector[Dependency] =
     dependencies.distinct

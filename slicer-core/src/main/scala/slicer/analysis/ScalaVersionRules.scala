@@ -16,12 +16,11 @@
 
 package slicer.analysis
 
-import java.nio.file.Path
-
 import scala.meta.*
 import scala.meta.internal.semanticdb
 
-import slicer.model.Symbol
+import slicer.compat.BuildUtil
+import slicer.model.{SliceFailure, Symbol}
 
 import cats.syntax.eq.*
 
@@ -31,8 +30,6 @@ private[slicer] sealed trait ScalaVersionRules {
 
   def dialects: Vector[Dialect]
 
-  def semanticdbOptions: Vector[String]
-
   def collectConversions(tree: Tree, symbolAtStart: Map[Int, Symbol]): Vector[Symbol]
 
   def checkForMissingSynthetics(docs: Vector[semanticdb.TextDocument]): Option[String]
@@ -40,17 +37,10 @@ private[slicer] sealed trait ScalaVersionRules {
 
 private[slicer] object ScalaVersionRules {
 
-  private lazy val versionInPath = """scala-([23]\.\d+\.\d+(?:-[\w.]+)?|3)(?:[/\\]|$)""".r
-
-  def rulesForScalaVersion(version: String): ScalaVersionRules =
-    if (version.startsWith("2.13")) Scala213Rules else Scala3Rules
-
-  def rulesForSemanticdbDirs(dirs: Vector[Path]): ScalaVersionRules =
-    dirs.iterator
-      .flatMap(dir => versionInPath.findFirstMatchIn(dir.toString).map(_.group(1)))
-      .nextOption()
-      .map(rulesForScalaVersion)
-      .getOrElse(Scala3Rules)
+  def rulesForScalaVersion(version: String): Either[SliceFailure, ScalaVersionRules] =
+    if (version.startsWith("2.13.")) Right(Scala213Rules)
+    else if (version.startsWith("3.")) Right(Scala3Rules)
+    else Left(SliceFailure(s"slice reads Scala 3 and Scala 2.13 projects; this one is on Scala $version"))
 
   case object Scala213Rules extends ScalaVersionRules {
 
@@ -59,8 +49,6 @@ private[slicer] object ScalaVersionRules {
     override val dialects: Vector[Dialect] =
       Vector(scala.meta.dialects.Scala213, scala.meta.dialects.Scala213Source3)
 
-    override val semanticdbOptions: Vector[String] = Vector("-P:semanticdb:synthetics:on")
-
     override def collectConversions(tree: Tree, symbolAtStart: Map[Int, Symbol]): Vector[Symbol] =
       collectImplicitConversions(tree, symbolAtStart)
 
@@ -68,7 +56,7 @@ private[slicer] object ScalaVersionRules {
       if (docs.nonEmpty && docs.forall(_.synthetics.isEmpty))
         Some(
           "SemanticDB carries no synthetics, so implicit arguments, conversions and for-comprehensions " +
-            "are invisible to the slicer. Compile with -P:semanticdb:synthetics:on."
+            s"are invisible to the slicer. Compile with ${BuildUtil.semanticdbSynthetics}."
         )
       else None
   }
@@ -78,8 +66,6 @@ private[slicer] object ScalaVersionRules {
     override val name: String = "Scala 3"
 
     override val dialects: Vector[Dialect] = Vector(scala.meta.dialects.Scala3)
-
-    override val semanticdbOptions: Vector[String] = Vector.empty
 
     private def isConversion(tpe: Type): Boolean = tpe match {
       case Type.Apply.After_4_6_0(Type.Name("Conversion"), _)                 => true

@@ -16,13 +16,13 @@
 
 package slicer.harness
 
-import java.nio.file.{Files as JFiles, Path}
+import java.nio.file.{Files, Path}
 
-import slicer.util.Files
+import slicer.compat.FileUtil
 
 object Workspace {
 
-  def create(prefix: String): Path = JFiles.createTempDirectory(prefix)
+  def create(prefix: String): Path = Files.createTempDirectory(prefix)
 
-  def delete(directory: Path): Unit = Files.deleteRecursively(directory)
+  def delete(directory: Path): Unit = FileUtil.deleteRecursively(directory)
 }

@@ -76,7 +76,8 @@ class Corpus(projectPath: String, modules: Vector[String], layout: CorpusLayout,
 
   val scalacOptions: Vector[String] = ScalacOptions.filterForSlice(buildTool.scalacOptions)
 
-  lazy val language: ScalaVersionRules = ScalaVersionRules.rulesForScalaVersion(scalaVersion)
+  lazy val language: ScalaVersionRules =
+    ScalaVersionRules.rulesForScalaVersion(scalaVersion).fold(failure => sys.error(failure.msg), identity)
 
   private val missingCorpus =
     s"""|the test project has no SemanticDB output under ${projectRoot.resolve(layout.outputPath)}.

@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-package slicer.mill
+package slicer.model
 
 import java.nio.file.Paths
-
-import slicer.model.*
 
 // scalafix:off DisableSyntax.defaultArgs
 class SliceArgumentsSuite extends munit.FunSuite {
@@ -46,7 +44,7 @@ class SliceArgumentsSuite extends munit.FunSuite {
   private val options = SliceOptions(followImplementations = false, keepFields = true)
 
   private def render(
-      tool: BuildTool.Mill = tool,
+      tool: BuildTool = tool,
       query: String = query,
       options: SliceOptions = options
   ): Vector[String] =
@@ -74,6 +72,27 @@ class SliceArgumentsSuite extends munit.FunSuite {
 
   test("the build tool a request carries survives being handed over as arguments") {
     assertEquals(SliceArguments.readBuildTool(fieldsOf(render())), Right(tool))
+  }
+
+  test("an sbt build a request carries survives being handed over as arguments") {
+    val sbt = BuildTool.Sbt(
+      scalaVersion = tool.scalaVersion,
+      sbtVersion = "2.0.8",
+      dependencies = tool.dependencies,
+      scalacOptions = tool.scalacOptions,
+      platform = tool.platform
+    )
+
+    assertEquals(SliceArguments.readBuildTool(fieldsOf(render(tool = sbt))), Right(sbt))
+  }
+
+  test("a request naming a build tool nothing emits is reported rather than guessed at") {
+    val garbled = fieldsOf(render().map(_.replace("tool=mill", "tool=gradle")))
+
+    assertEquals(
+      SliceArguments.readBuildTool(garbled),
+      Left(SliceFailure("slice request names an unknown build tool: gradle"))
+    )
   }
 
   test("the query and options a request carries survive being handed over as arguments") {

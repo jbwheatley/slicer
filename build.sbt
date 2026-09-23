@@ -1,14 +1,18 @@
 import org.typelevel.scalacoptions.ScalacOptions
 
 val scala3 = "3.8.4"
+val scala212 = "2.12.21"
 
-val scalameta = "4.17.3"
+val sbt1 = "1.12.3"
+
+val scalameta = "4.17.4"
 val cats = "2.13.0"
-val munit = "1.3.5"
+val munit = "1.3.6"
 val catsEffect = "3.7.1"
 val layoutz = "0.8.0"
-val mill = "1.1.8"
-val sbtTuiLibraries = "0.0.1"
+val mill = "1.1.10"
+val sbtTuiLibraries = "0.0.2"
+val sbt2Compat = "0.2.0"
 
 val checkCorpusSlices =
   taskKey[Unit]("Slice every definition of both sbt corpuses and compile each slice standalone")
@@ -28,6 +32,20 @@ val writeSemanticClasspath =
   taskKey[File]("Write every module's test classpath to .claude/scala-semantic-classpath.txt for the MCP server")
 
 val forksABuildTool = Tags.Tag("forksABuildTool")
+
+val writeSlicerVersion = Def.task {
+  val source = (Compile / sourceManaged).value / "slicer" / "sbt" / "SlicerVersion.scala"
+  IO.write(
+    source,
+    s"""package slicer.sbt
+       |
+       |private[slicer] object SlicerVersion {
+       |  val version: String = "${version.value}"
+       |}
+       |""".stripMargin
+  )
+  Seq(source)
+}
 
 inThisBuild(
   List(
@@ -57,7 +75,8 @@ inThisBuild(
 )
 
 val commonSettings = Seq(
-  scalacOptions ++= Seq("-no-indent"),
+  scalacOptions ++= (if (scalaVersion.value.startsWith("3")) Seq("-no-indent") else Seq.empty),
+  semanticdbOptions ++= (if (scalaVersion.value.startsWith("2")) Seq("-P:semanticdb:synthetics:on") else Seq.empty),
   headerLicense := Some(HeaderLicense.ALv2("2026", "io.github.jbwheatley")),
   publish := publish.dependsOn(rejectSnapshotPublish).value,
   com.jsuereth.sbtpgp.PgpKeys.publishSigned :=
@@ -69,7 +88,16 @@ val commonSettings = Seq(
 )
 
 lazy val suiteModules =
-  List(slicerCore, slicerSbt, slicerTui, slicerMill, corpusCheck)
+  List(
+    slicerCore,
+    slicerCompat.jvm(scala3),
+    slicerCompat.jvm(scala212),
+    slicerSbt.jvm(scala3),
+    slicerSbt.jvm(scala212),
+    slicerTui,
+    slicerMill,
+    corpusCheck
+  )
 
 lazy val root = (project in file("."))
   .enablePlugins(ScalaSemanticMcpPlugin)
@@ -84,7 +112,7 @@ lazy val root = (project in file("."))
         (slicerCore / Test / fullClasspath).value,
         (slicerTui / Test / fullClasspath).value,
         (slicerMill / Test / fullClasspath).value,
-        (slicerSbt / Test / fullClasspath).value,
+        (slicerSbt.jvm(scala3) / Test / fullClasspath).value,
         (corpusCheck / Compile / fullClasspath).value,
         (emittedBuildCheck / Test / fullClasspath).value
       ).flatten.map(entry => converter.toPath(entry.data).toAbsolutePath.toString).distinct
@@ -94,8 +122,18 @@ lazy val root = (project in file("."))
     }
   )
 
+lazy val slicerCompat = (projectMatrix in file("slicer-compat"))
+  .enablePlugins(AutomateHeaderPlugin)
+  .jvmPlatform(scalaVersions = Seq(scala3, scala212))
+  .settings(commonSettings)
+  .settings(
+    name := "slicer-compat",
+    libraryDependencies += "org.scalameta" %% "munit" % munit % Test
+  )
+
 lazy val slicerCore = (project in file("slicer-core"))
   .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(slicerCompat.jvm(scala3))
   .settings(commonSettings)
   .settings(
     name := "slicer-core",
@@ -122,7 +160,11 @@ lazy val slicerTui = (project in file("slicer-tui"))
       "org.scalameta" %% "munit" % munit % Test
     ),
     Test / fork := true,
-    Test / javaOptions ++= Seq("-Xmx2g", "-Xss4m")
+    Test / javaOptions ++= Seq(
+      "-Xmx2g",
+      "-Xss4m",
+      s"-Dslicer.sbtCorpus=${(ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test" / "test-project"}"
+    )
   )
 
 lazy val slicerMill = (project in file("slicer-mill"))
@@ -194,23 +236,34 @@ lazy val corpusCheck = (project in file("corpus-check"))
     }
   )
 
-lazy val slicerSbt = (project in file("slicer-sbt"))
+lazy val slicerSbt = (projectMatrix in file("slicer-sbt"))
   .enablePlugins(AutomateHeaderPlugin)
-  .dependsOn(slicerTui)
+  .customRow(
+    scalaVersions = Seq(scala3),
+    axisValues = Seq(VirtualAxis.jvm),
+    _.dependsOn(slicerTui).settings(libraryDependencies += "io.github.jbwheatley" %% "sbt-tui" % sbtTuiLibraries)
+  )
+  .customRow(
+    scalaVersions = Seq(scala212),
+    axisValues = Seq(VirtualAxis.jvm),
+    (row: Project) =>
+      row
+        .dependsOn(slicerCompat.jvm(scala212))
+        .settings(
+          pluginCrossBuild / sbtVersion := sbt1,
+          Compile / sourceGenerators += writeSlicerVersion.taskValue
+        )
+  )
   .settings(commonSettings)
   .settings(
     name := "slicer-sbt",
     sbtPlugin := true,
+    addSbtPlugin("com.github.sbt" % "sbt2-compat" % sbt2Compat),
     libraryDependencies ++= Seq(
-      "io.github.jbwheatley" %% "sbt-tui_sbt2" % sbtTuiLibraries,
+      "org.typelevel" %% "cats-core" % cats,
       "org.scalameta" %% "munit" % munit % Test
     ),
-    Test / fork := true,
-    Test / javaOptions ++= Seq(
-      "-Xmx2g",
-      "-Xss4m",
-      s"-Dslicer.sbtCorpus=${(ThisBuild / baseDirectory).value / "slicer-core" / "src" / "test" / "test-project"}"
-    )
+    Test / fork := true
   )
 
 addCommandAlias(

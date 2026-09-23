@@ -10,6 +10,7 @@ Extract compilable vertical slice of Scala codebase from SemanticDB.
 - **`sliceClear` removes slice directories, never root.** User picked root, may keep own files in it.
 - `SlicerModule` must **extend** `ScalaModule`; self-type compiles, then fails at run time with "Unable to resolve command". `Task.dest` cannot be argument to task applied inside command — hand picker output directory over as task.
 - **Resize = SIGWINCH, never timer.** Measuring terminal forks `stty size`, so sampling per tick costs fork per tick and lands redraw late.
+- **sbt 1 plugin is Scala 2.12 and cannot link Scala 3**: it forks `slicer-tui_3` with picker arguments, and `slicer-compat` holds only what it and core must agree on — never types. sbt 2 keeps picker in-process: its server's stdio is not user's terminal, so forked picker never reaches it. Picker resolves outside the user's `update` and without `scalap`: sbt 1 pins `scalap` to the `scala-library` version, which Scala 3.8 publishes as `3.8.x`.
 - **Mill picker opens in own process, never daemon**, whose stdout is log and whose `/dev/tty` belongs to whoever started it; `Jvm.callInteractiveProcess` routes it back to launcher with stdio inherited raw, so `./mill slice` works without `--no-daemon`.
 - Picker refuses unless `test -t 0 && test -t 1` passes on its stdio; `System.console()` cannot be that check — stops discriminating on JDK 22+.
 - **Leaving picker must not touch scrollback**; layoutz clears it on exit unless the terminal refuses to.
@@ -22,7 +23,7 @@ Extract compilable vertical slice of Scala codebase from SemanticDB.
 ## Sliced languages
 
 - Slicer reads **Scala 3 and Scala 2.13**, one corpus each. New Scala-2-only logic goes behind `ScalaVersionRules` in own file, never as branch in `Index` or `Reachability`.
-- Scala 2 SemanticDB carries synthetics only under `-P:semanticdb:synthetics:on`; without it implicit arguments and conversions invisible. **Every entry point reads that flag from `ScalaVersionRules`** — plugin holding own copy silently slices Scala 2 without implicits.
+- Scala 2 SemanticDB carries synthetics only under `-P:semanticdb:synthetics:on`; without it implicit arguments and conversions invisible. **Every entry point reads that flag from `slicer.compat.BuildUtil`** — plugin holding own copy silently slices Scala 2 without implicits.
 - **Scala 3 corpus pinned to newest stable Scala 3, never LTS**: corpus is input specimen, so newest syntax has to be in it.
 - **Brace and indentation syntax both input; slice stays in syntax it arrived in.** Only emitter's own syntax written: emptied body, its `:` or `with`, `end` marker outliving its definition. Given emptied of members still needs body; class, trait, object drop theirs.
 - **Macro expansion is call-site fact, so definition side over-approximates**: anything `expandsAtCallSite` keeps every given in owner's scope, and string literal equal to definition's fully qualified name is edge whose target keeps its members — only way `Symbol.requiredModule("a.b.C")` / `c.mirror.staticModule` survive.
@@ -51,6 +52,7 @@ Extract compilable vertical slice of Scala codebase from SemanticDB.
 - Before any commit: `sbt commitCheck` must pass.
 - Type compared as whole gets `given Eq[T] = Eq.fromUniversalEquals` in companion.
 - Fatal warnings on: discard non-Unit result with `: Unit` ascription, not trailing `()`, and keep matches exhaustive with unguarded final case rather than guard.
+- Scala 2 rows of this build keep `-P:semanticdb:synthetics:on` though nothing indexes them: scalafix refuses to run without it.
 - `conflictWarning` off for mill plugin because mill classpath legitimately mixes `_3` and `_2.13` copies of scala-xml and scala-collection-compat.
 
 ## Style

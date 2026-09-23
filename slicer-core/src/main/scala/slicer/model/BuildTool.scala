@@ -19,6 +19,7 @@ package slicer.model
 private[slicer] sealed trait BuildTool {
   def scalaVersion: String
   def name: String
+  def compileFirstAdvice: String
   def dependencies: Vector[Dependency]
   def scalacOptions: Vector[String]
   def platform: Platform
@@ -34,6 +35,7 @@ private[slicer] object BuildTool {
       platform: Platform
   ) extends BuildTool {
     override val name = "sbt"
+    override val compileFirstAdvice = "compile with semanticdbEnabled first"
   }
 
   final case class Mill(
@@ -44,5 +46,6 @@ private[slicer] object BuildTool {
       platform: Platform
   ) extends BuildTool {
     override val name = "mill"
+    override val compileFirstAdvice = "run ./mill __.semanticDbData first"
   }
 }

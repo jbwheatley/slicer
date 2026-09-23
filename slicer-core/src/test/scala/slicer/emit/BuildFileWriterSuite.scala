@@ -245,7 +245,7 @@ class BuildFileWriterSuite extends munit.FunSuite {
 
   workspace.test("an sbt slice of a Scala.js project builds on the platform it was sliced from") { out =>
     BuildFileWriter.writeBuildFiles(
-      BuildTool.Sbt("3.3.6", "2.0.6", Vector(cats.copy(platformed = true)), Vector.empty, scalaJs),
+      BuildTool.Sbt("3.3.6", "2.0.8", Vector(cats.copy(platformed = true)), Vector.empty, scalaJs),
       out,
       Vector("core/src/main/scala"),
       Vector.empty

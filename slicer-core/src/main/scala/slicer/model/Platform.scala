@@ -16,8 +16,9 @@
 
 package slicer.model
 
+import slicer.compat.BuildUtil
+
 import cats.Eq
-import cats.syntax.eq.*
 
 sealed trait Platform {
 
@@ -35,19 +36,12 @@ object Platform {
   }
 
   final case class ScalaJs(version: String) extends Platform {
-    override def token: String = "sjs" + toBinaryVersion(version)
+    override def token: String = BuildUtil.renderScalaJsToken(version)
   }
 
   final case class ScalaNative(version: String) extends Platform {
-    override def token: String = "native" + toBinaryVersion(version)
+    override def token: String = BuildUtil.renderScalaNativeToken(version)
   }
-
-  def toBinaryVersion(version: String): String =
-    version.split('.').toVector match {
-      case major +: _ if major =!= "0" => major
-      case major +: minor +: _         => s"$major.$minor"
-      case parts                       => parts.mkString(".")
-    }
 
   given Eq[Platform] = Eq.fromUniversalEquals
 }

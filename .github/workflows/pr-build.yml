@@ -161,6 +161,9 @@ jobs:
       - name: Build the example project with sbt
         run: sbt compile
         working-directory: example
+      - name: Build the example project with sbt 1
+        run: sbt compile sliceClear
+        working-directory: example-sbt1
       - name: Build the example project with mill
         run: ./mill compile
         working-directory: example

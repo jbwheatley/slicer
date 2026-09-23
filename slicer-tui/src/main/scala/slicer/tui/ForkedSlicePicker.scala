@@ -14,52 +14,30 @@
  * limitations under the License.
  */
 
-package slicer.mill
+package slicer.tui
 
 import scala.util.Try
 
-import slicer.model.SliceFailure
-import slicer.tui.{SlicePicker, SliceTui}
+import slicer.model.{SliceArguments, SliceFailure}
 import slicer.util.ConsolePrint.*
 
 import tui.viewport.TerminalSizeTracking
 
-private[slicer] object MillSlicePicker extends SlicePicker(TerminalSizeTracking(), tickIntervalMs = 8L) {
+private[slicer] object ForkedSlicePicker extends SlicePicker(TerminalSizeTracking(), tickIntervalMs = 8L) {
 
-  val mainClass: String = "slicer.mill.MillSlicePicker"
-
-  def main(args: Array[String]): Unit = {
-    val picked = for {
-      fields <- SliceArguments.toFields(args.toVector)
-      sourceRoot <- SliceArguments.readSourceRoot(fields)
-      out <- SliceArguments.readOut(fields)
-      semanticdbDirs <- SliceArguments.readSemanticdbDirs(fields)
-      sourceDirs <- SliceArguments.readSourceDirs(fields)
-      tool <- SliceArguments.readBuildTool(fields)
-      options <- SliceArguments.readOptions(fields)
-      inputs <- MillSliceInputs.buildSliceInputs(
-        sourceRoot = sourceRoot,
-        semanticdbDirs = semanticdbDirs,
-        sourceDirs = sourceDirs,
-        out = out,
-        tool = tool
-      )
-      outcome <- openPicker(inputs = inputs, query = SliceArguments.readQuery(fields), options = options)
-    } yield outcome
-
-    picked match {
+  def main(args: Array[String]): Unit =
+    SliceArguments.toFields(args.toVector).flatMap(openRequestedPicker) match {
       case Left(error) =>
         System.err.println(s"$error".toConsoleMessage)
         sys.exit(1)
       case Right(_) => ()
     }
-  }
 
   override protected def openPickerImpl(tui: SliceTui): Either[SliceFailure, Unit] =
     if (!runsOnATerminal())
       Left(
         SliceFailure(
-          "slicer opens an interactive tui and this run has no terminal to open it on - run './mill slice' from a shell."
+          "slicer opens an interactive tui and this run has no terminal to open it on - run it from a shell."
         )
       )
     else

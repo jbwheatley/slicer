@@ -16,14 +16,11 @@
 
 package slicer.mill
 
-import java.nio.file.Path
-
 import slicer.model.*
-import slicer.tui.SliceInputs
 
 import mill.javalib.Dep
 
-private[slicer] object MillSliceInputs {
+private[slicer] object MillDependencies {
 
   def toDependency(dep: Dep, scope: DependencyScope): Dependency =
     Dependency(
@@ -40,20 +37,4 @@ private[slicer] object MillSliceInputs {
 
   def collectDependencies(deps: Seq[Dep], scope: DependencyScope): Vector[Dependency] =
     Dependency.sortDependencies(deps.map(dep => toDependency(dep, scope)))
-
-  def buildSliceInputs(
-      sourceRoot: Path,
-      semanticdbDirs: Vector[Path],
-      sourceDirs: Vector[Path],
-      out: Path,
-      tool: BuildTool.Mill
-  ): Either[SliceFailure, SliceInputs] =
-    SliceInputs.build(
-      sourceRoot = sourceRoot,
-      semanticdbDirs = semanticdbDirs,
-      sourceDirs = sourceDirs,
-      out = out,
-      tool = tool,
-      compileFirstAdvice = "run ./mill __.semanticDbData first"
-    )
 }
