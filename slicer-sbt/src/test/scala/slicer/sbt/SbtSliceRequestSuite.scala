@@ -26,15 +26,27 @@ class SbtSliceRequestSuite extends munit.FunSuite {
   private val sbt2 = "2.0.6"
   private val sbt1 = "1.12.3"
 
+  private val scala3 = "3.8.4"
+
   test("a cross-versioned dependency keeps its cross-version, a java one does not") {
     assertEquals(
       obtained = SbtSliceRequest
-        .toDependencyText(module = "org.typelevel" %% "cats-core" % "2.13.0", platform = jvm, sbtVersion = sbt2),
+        .toDependencyText(
+          module = "org.typelevel" %% "cats-core" % "2.13.0",
+          platform = jvm,
+          sbtVersion = sbt2,
+          scalaVersion = scala3
+        ),
       expected = "org.typelevel|cats-core|2.13.0|Binary|Compile|false"
     )
     assertEquals(
       obtained = SbtSliceRequest
-        .toDependencyText(module = "com.lihaoyi" % "os-lib" % "0.9.0", platform = jvm, sbtVersion = sbt2),
+        .toDependencyText(
+          module = "com.lihaoyi" % "os-lib" % "0.9.0",
+          platform = jvm,
+          sbtVersion = sbt2,
+          scalaVersion = scala3
+        ),
       expected = "com.lihaoyi|os-lib|0.9.0|Disabled|Compile|false"
     )
   }
@@ -45,9 +57,40 @@ class SbtSliceRequestSuite extends munit.FunSuite {
         .toDependencyText(
           module = ("org.typelevel" % "kind-projector" % "0.13.3").cross(CrossVersion.full),
           platform = jvm,
-          sbtVersion = sbt2
+          sbtVersion = sbt2,
+          scalaVersion = scala3
         ),
       expected = "org.typelevel|kind-projector|0.13.3|Full|Compile|false"
+    )
+  }
+
+  test("a dependency pinned to another Scala version's artifact is sent under that artifact's name") {
+    val scala213Artifact = ("org.typelevel" %% "cats-core" % "2.13.0").cross(CrossVersion.for3Use2_13)
+
+    assertEquals(
+      obtained = SbtSliceRequest
+        .toDependencyText(module = scala213Artifact, platform = jvm, sbtVersion = sbt2, scalaVersion = scala3),
+      expected = "org.typelevel|cats-core_2.13|2.13.0|Disabled|Compile|false"
+    )
+  }
+
+  test("on sbt 2 a pinned artifact of a project off the JVM carries the platform before the Scala version") {
+    val scala213Artifact = ("org.typelevel" %% "cats-core" % "2.13.0").cross(CrossVersion.for3Use2_13)
+
+    assertEquals(
+      obtained = SbtSliceRequest
+        .toDependencyText(module = scala213Artifact, platform = scalaJs, sbtVersion = sbt2, scalaVersion = scala3),
+      expected = "org.typelevel|cats-core_sjs1_2.13|2.13.0|Disabled|Compile|false"
+    )
+  }
+
+  test("on sbt 1 a pinned artifact takes its platform from its own prefix") {
+    val onScalaJs = ("org.typelevel" % "cats-core" % "2.13.0").cross(CrossVersion.for3Use2_13With("sjs1_", ""))
+
+    assertEquals(
+      obtained = SbtSliceRequest
+        .toDependencyText(module = onScalaJs, platform = scalaJs, sbtVersion = sbt1, scalaVersion = scala3),
+      expected = "org.typelevel|cats-core_sjs1_2.13|2.13.0|Disabled|Compile|false"
     )
   }
 
@@ -55,7 +98,8 @@ class SbtSliceRequestSuite extends munit.FunSuite {
     val onScalaJs = ("org.typelevel" % "cats-core" % "2.13.0").cross(CrossVersion.binaryWith("sjs1_", ""))
 
     assertEquals(
-      obtained = SbtSliceRequest.toDependencyText(module = onScalaJs, platform = jvm, sbtVersion = sbt1),
+      obtained =
+        SbtSliceRequest.toDependencyText(module = onScalaJs, platform = jvm, sbtVersion = sbt1, scalaVersion = scala3),
       expected = "org.typelevel|cats-core|2.13.0|Binary|Compile|true"
     )
   }
@@ -63,12 +107,22 @@ class SbtSliceRequestSuite extends munit.FunSuite {
   test("on sbt 2 a cross-versioned dependency of a project off the JVM resolves on that project's platform") {
     assertEquals(
       obtained = SbtSliceRequest
-        .toDependencyText(module = "org.typelevel" %% "cats-core" % "2.13.0", platform = scalaJs, sbtVersion = sbt2),
+        .toDependencyText(
+          module = "org.typelevel" %% "cats-core" % "2.13.0",
+          platform = scalaJs,
+          sbtVersion = sbt2,
+          scalaVersion = scala3
+        ),
       expected = "org.typelevel|cats-core|2.13.0|Binary|Compile|true"
     )
     assertEquals(
       obtained = SbtSliceRequest
-        .toDependencyText(module = "com.lihaoyi" % "os-lib" % "0.9.0", platform = scalaJs, sbtVersion = sbt2),
+        .toDependencyText(
+          module = "com.lihaoyi" % "os-lib" % "0.9.0",
+          platform = scalaJs,
+          sbtVersion = sbt2,
+          scalaVersion = scala3
+        ),
       expected = "com.lihaoyi|os-lib|0.9.0|Disabled|Compile|false"
     )
   }
@@ -76,7 +130,12 @@ class SbtSliceRequestSuite extends munit.FunSuite {
   test("on sbt 1 a cross-versioned dependency without a platform prefix resolves on the JVM") {
     assertEquals(
       obtained = SbtSliceRequest
-        .toDependencyText(module = "org.typelevel" %% "cats-core" % "2.13.0", platform = scalaJs, sbtVersion = sbt1),
+        .toDependencyText(
+          module = "org.typelevel" %% "cats-core" % "2.13.0",
+          platform = scalaJs,
+          sbtVersion = sbt1,
+          scalaVersion = scala3
+        ),
       expected = "org.typelevel|cats-core|2.13.0|Binary|Compile|false"
     )
   }
@@ -104,7 +163,8 @@ class SbtSliceRequestSuite extends munit.FunSuite {
     )
 
     assertEquals(
-      obtained = SbtSliceRequest.collectDependencies(modules = modules, platform = jvm, sbtVersion = sbt2),
+      obtained = SbtSliceRequest
+        .collectDependencies(modules = modules, platform = jvm, sbtVersion = sbt2, scalaVersion = scala3),
       expected =
         Vector("com.lihaoyi|os-lib|0.9.0|Disabled|Compile|false", "org.typelevel|cats-core|2.13.0|Binary|Compile|false")
     )
@@ -117,7 +177,8 @@ class SbtSliceRequestSuite extends munit.FunSuite {
     )
 
     assertEquals(
-      obtained = SbtSliceRequest.collectDependencies(modules = modules, platform = jvm, sbtVersion = sbt2),
+      obtained = SbtSliceRequest
+        .collectDependencies(modules = modules, platform = jvm, sbtVersion = sbt2, scalaVersion = scala3),
       expected = Vector("org.typelevel|cats-core|2.13.0|Binary|Compile|false")
     )
   }
@@ -130,7 +191,8 @@ class SbtSliceRequestSuite extends munit.FunSuite {
     )
 
     assertEquals(
-      obtained = SbtSliceRequest.collectDependencies(modules = modules, platform = jvm, sbtVersion = sbt2),
+      obtained = SbtSliceRequest
+        .collectDependencies(modules = modules, platform = jvm, sbtVersion = sbt2, scalaVersion = scala3),
       expected = Vector(
         "com.lihaoyi|sourcecode|0.4.2|Binary|Provided|false",
         "org.typelevel|cats-core|2.13.0|Binary|Provided|false",

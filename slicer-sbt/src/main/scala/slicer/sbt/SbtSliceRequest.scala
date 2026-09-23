@@ -18,8 +18,8 @@ package slicer.sbt
 
 import java.nio.file.Path
 
-import slicer.compat.SbtVersionRules
 import slicer.compat.SliceArgumentFormat.*
+import slicer.compat.{PlatformToken, SbtVersionRules}
 
 import cats.syntax.eq.*
 import sbt.librarymanagement.{CrossVersion, ModuleID}
@@ -48,7 +48,12 @@ private[slicer] object SbtSliceRequest {
       platformVersion = toPlatformVersion(platform),
       semanticdbDirs = semanticdbDirs,
       sourceDirs = sourceDirs,
-      dependencies = collectDependencies(modules = modules, platform = platform, sbtVersion = sbtVersion),
+      dependencies = collectDependencies(
+        modules = modules,
+        platform = platform,
+        sbtVersion = sbtVersion,
+        scalaVersion = scalaVersion
+      ),
       scalacOptions = scalacOptions
     )
   }
@@ -79,18 +84,25 @@ private[slicer] object SbtSliceRequest {
     scalaJs.orElse(scalaNative).getOrElse(DetectedPlatform.Jvm)
   }
 
-  def collectDependencies(modules: Seq[ModuleID], platform: DetectedPlatform, sbtVersion: String): Vector[String] =
+  def collectDependencies(
+      modules: Seq[ModuleID],
+      platform: DetectedPlatform,
+      sbtVersion: String,
+      scalaVersion: String
+  ): Vector[String] =
     modules
       .filter(module => isSlicedConfiguration(module))
       .sortBy(module => (module.organization, module.name, module.revision))
-      .map(module => toDependencyText(module = module, platform = platform, sbtVersion = sbtVersion))
+      .map(module =>
+        toDependencyText(module = module, platform = platform, sbtVersion = sbtVersion, scalaVersion = scalaVersion)
+      )
       .distinct
       .toVector
 
-  def toDependencyText(module: ModuleID, platform: DetectedPlatform, sbtVersion: String): String =
+  def toDependencyText(module: ModuleID, platform: DetectedPlatform, sbtVersion: String, scalaVersion: String): String =
     Vector(
       module.organization,
-      module.name,
+      toArtifactName(module = module, platform = platform, sbtVersion = sbtVersion, scalaVersion = scalaVersion),
       module.revision,
       toCrossVersionToken(module),
       toScopeToken(module),
@@ -117,6 +129,33 @@ private[slicer] object SbtSliceRequest {
 
   private def isCompilerPlugin(module: ModuleID): Boolean =
     module.configurations.exists(configuration => configuration.startsWith("plugin->"))
+
+  private def toArtifactName(
+      module: ModuleID,
+      platform: DetectedPlatform,
+      sbtVersion: String,
+      scalaVersion: String
+  ): String =
+    if (crossesScalaVersion(module)) module.name
+    else
+      CrossVersion(
+        cross = module.crossVersion,
+        fullVersion = scalaVersion,
+        binaryVersion = CrossVersion.binaryScalaVersion(scalaVersion)
+      ).fold(module.name)(appendScalaSuffix =>
+        appendScalaSuffix(appendPlatformSuffix(module = module, platform = platform, sbtVersion = sbtVersion))
+      )
+
+  private def appendPlatformSuffix(module: ModuleID, platform: DetectedPlatform, sbtVersion: String): String =
+    if (SbtVersionRules.appliesPlatformPerProject(sbtVersion) && !isCompilerPlugin(module))
+      toPlatformToken(platform).fold(module.name)(token => s"${module.name}_$token")
+    else module.name
+
+  private def toPlatformToken(platform: DetectedPlatform): Option[String] = platform match {
+    case DetectedPlatform.Jvm                  => None
+    case DetectedPlatform.ScalaJs(version)     => Some(PlatformToken.renderScalaJsToken(version))
+    case DetectedPlatform.ScalaNative(version) => Some(PlatformToken.renderScalaNativeToken(version))
+  }
 
   private def toCrossVersionToken(module: ModuleID): String = module.crossVersion match {
     case _: CrossVersion.Binary => binaryCrossVersion

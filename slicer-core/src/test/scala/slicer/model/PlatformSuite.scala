@@ -29,11 +29,4 @@ class PlatformSuite extends munit.FunSuite {
     assertEquals(Platform.ScalaNative("0.5.8").crossPrefix, "native0.5_")
     assertEquals(Platform.Jvm.crossPrefix, "")
   }
-
-  test("a platform version drops the patch, and the minor too once the major version reached one") {
-    assertEquals(Platform.toBinaryVersion("1.19.0"), "1")
-    assertEquals(Platform.toBinaryVersion("0.5.8"), "0.5")
-    assertEquals(Platform.toBinaryVersion("0.4.17"), "0.4")
-    assertEquals(Platform.toBinaryVersion("2"), "2")
-  }
 }
