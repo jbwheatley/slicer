@@ -16,13 +16,11 @@
 
 package slicer.analysis
 
-import java.nio.file.Path
-
 import scala.meta.*
 import scala.meta.internal.semanticdb
 
 import slicer.compat.SemanticdbOptions
-import slicer.model.Symbol
+import slicer.model.{SliceFailure, Symbol}
 
 import cats.syntax.eq.*
 
@@ -39,17 +37,10 @@ private[slicer] sealed trait ScalaVersionRules {
 
 private[slicer] object ScalaVersionRules {
 
-  private lazy val versionInPath = """scala-([23]\.\d+\.\d+(?:-[\w.]+)?|3)(?:[/\\]|$)""".r
-
-  def rulesForScalaVersion(version: String): ScalaVersionRules =
-    if (version.startsWith("2.13")) Scala213Rules else Scala3Rules
-
-  def rulesForSemanticdbDirs(dirs: Vector[Path]): ScalaVersionRules =
-    dirs.iterator
-      .flatMap(dir => versionInPath.findFirstMatchIn(dir.toString).map(_.group(1)))
-      .nextOption()
-      .map(rulesForScalaVersion)
-      .getOrElse(Scala3Rules)
+  def rulesForScalaVersion(version: String): Either[SliceFailure, ScalaVersionRules] =
+    if (version.startsWith("2.13.")) Right(Scala213Rules)
+    else if (version.startsWith("3.")) Right(Scala3Rules)
+    else Left(SliceFailure(s"slice reads Scala 3 and Scala 2.13 projects; this one is on Scala $version"))
 
   case object Scala213Rules extends ScalaVersionRules {
 

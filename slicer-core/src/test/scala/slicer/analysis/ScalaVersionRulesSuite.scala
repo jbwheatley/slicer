@@ -16,8 +16,6 @@
 
 package slicer.analysis
 
-import java.nio.file.Paths
-
 import scala.meta.*
 import scala.meta.internal.semanticdb
 
@@ -27,10 +25,11 @@ import slicer.model.Symbol
 
 class ScalaVersionRulesSuite extends munit.FunSuite {
 
-  test("the Scala version in the SemanticDB output path picks the dialect the CLI parses with") {
-    assertEquals(ScalaVersionRules.rulesForSemanticdbDirs(TestProject213.semanticdbDirs), Scala213Rules)
-    assertEquals(ScalaVersionRules.rulesForSemanticdbDirs(TestProject.semanticdbDirs), Scala3Rules)
-    assertEquals(ScalaVersionRules.rulesForSemanticdbDirs(Vector(Paths.get("/tmp/nothing"))), Scala3Rules)
+  test("Scala 2.13 and Scala 3 projects get their own rules, and any other Scala version is refused") {
+    assertEquals(ScalaVersionRules.rulesForScalaVersion(TestProject213.scalaVersion), Right(Scala213Rules))
+    assertEquals(ScalaVersionRules.rulesForScalaVersion(TestProject.scalaVersion), Right(Scala3Rules))
+    assert(ScalaVersionRules.rulesForScalaVersion("2.12.20").isLeft)
+    assert(ScalaVersionRules.rulesForScalaVersion("2.11.12").isLeft)
   }
 
   test("SemanticDB without synthetics is called out, because implicits are invisible in it") {
