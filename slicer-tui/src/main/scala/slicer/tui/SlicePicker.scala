@@ -16,7 +16,7 @@
 
 package slicer.tui
 
-import slicer.model.{SliceFailure, SliceOptions}
+import slicer.model.{SliceArguments, SliceFailure, SliceOptions}
 
 import tui.viewport.TerminalSizeTracking
 
@@ -26,6 +26,24 @@ trait SlicePicker(sizing: TerminalSizeTracking, tickIntervalMs: Long) {
 
   final def openPicker(inputs: SliceInputs, query: String, options: SliceOptions): Either[SliceFailure, Unit] =
     openPickerImpl(tui(inputs = inputs, query = query, options = options))
+
+  final def openRequestedPicker(fields: SliceArguments.Fields): Either[SliceFailure, Unit] =
+    for {
+      sourceRoot <- SliceArguments.readSourceRoot(fields)
+      out <- SliceArguments.readOut(fields)
+      semanticdbDirs <- SliceArguments.readSemanticdbDirs(fields)
+      sourceDirs <- SliceArguments.readSourceDirs(fields)
+      tool <- SliceArguments.readBuildTool(fields)
+      options <- SliceArguments.readOptions(fields)
+      inputs <- SliceInputs.build(
+        sourceRoot = sourceRoot,
+        semanticdbDirs = semanticdbDirs,
+        sourceDirs = sourceDirs,
+        out = out,
+        tool = tool
+      )
+      outcome <- openPicker(inputs = inputs, query = SliceArguments.readQuery(fields), options = options)
+    } yield outcome
 
   protected def openPickerImpl(tui: SliceTui): Either[SliceFailure, Unit]
 }

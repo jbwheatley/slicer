@@ -19,6 +19,7 @@ package slicer.mill
 import java.nio.file.{Path, Paths}
 
 import slicer.model.{Dependency as SliceDependency, *}
+import slicer.tui.SliceInputs
 
 import mill.javalib.Dep
 import mill.scalalib.*
@@ -34,7 +35,7 @@ class MillSliceInputsSuite extends munit.FunSuite {
     Vector("base", "external", "entry").map(module => corpus.resolve(s"$module/src/main/scala"))
 
   private def inputsOf(semanticdbDirs: Vector[Path], sourceDirs: Vector[Path]) =
-    MillSliceInputs.buildSliceInputs(
+    SliceInputs.build(
       sourceRoot = corpus,
       semanticdbDirs = semanticdbDirs,
       sourceDirs = sourceDirs,
@@ -99,7 +100,7 @@ class MillSliceInputsSuite extends munit.FunSuite {
     val corpus213: Path = Paths.get(sys.props("slicer.millCorpus213"))
     val modules = Vector("base", "external", "entry")
 
-    MillSliceInputs.buildSliceInputs(
+    SliceInputs.build(
       sourceRoot = corpus213,
       semanticdbDirs = modules.map(module => corpus213.resolve(s"out/$module/semanticDbDataDetailed.dest/data")),
       sourceDirs = modules.map(module => corpus213.resolve(s"$module/src/main/scala")),

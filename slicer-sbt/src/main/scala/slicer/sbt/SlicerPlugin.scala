@@ -18,13 +18,11 @@ package slicer.sbt
 
 import java.nio.file.Path
 
-import slicer.analysis.ScalaVersionRules
-import slicer.emit.WrittenSlices
-import slicer.model.SliceOptions
-import slicer.tui.SliceInputs
+import slicer.compat.{SemanticdbOptions, WrittenSlices}
 
-import _root_.sbt.Keys.*
-import _root_.sbt.{Def, *}
+import sbt.Keys.*
+import sbt.internal.util.MessageOnlyException
+import sbt.{Def, *}
 
 object SlicerPlugin extends AutoPlugin {
 
@@ -37,66 +35,59 @@ object SlicerPlugin extends AutoPlugin {
       taskKey[Unit]("Remove every slice this project's picker has written under target/slice.")
   }
 
-  import autoImport.*
-
-  private val sliceInputs: TaskKey[SliceInputs] = taskKey[SliceInputs]("")
+  private[slicer] val sliceArguments: TaskKey[Vector[String]] = taskKey[Vector[String]]("")
 
   private def sliceOut: Def.Initialize[Path] = Def.setting((target.value / "slice").toPath)
 
-  override def projectSettings: Seq[Setting[?]] = Seq(
+  override def projectSettings: Seq[Setting[?]] = OpenSlicePicker.settings ++ Seq(
     semanticdbEnabled := true,
-    semanticdbOptions ++= ScalaVersionRules.rulesForScalaVersion(scalaVersion.value).semanticdbOptions,
-    sliceClear := Def.uncached {
-      val out = sliceOut.value
-      val log = streams.value.log
-      WrittenSlices.clearWrittenSlices(out) match {
-        case Left(error)     => throw error // scalafix:ok DisableSyntax.throw
-        case Right(messages) => messages.foreach(log.info(_))
-      }
-    },
-    sliceInputs := Def.uncached { buildSliceInputsTask.value }
+    semanticdbOptions ++= SemanticdbOptions.optionsForScalaVersion(scalaVersion.value)
   )
 
-  override def globalSettings: Seq[Setting[?]] = Seq(commands += slicePicker)
+  override def globalSettings: Seq[Setting[?]] = Seq(commands += openSlicePicker)
 
-  private def slicePicker: Command = Command.args("slice", "<symbol>") { (state, args) =>
+  private def openSlicePicker: Command = Command.args(name = "slice", display = "<symbol>") { (state, args) =>
+    OpenSlicePicker.openPicker(state, args)
+  }
+
+  private[sbt] def runSliceArguments(state: State, query: Seq[String]): (State, Vector[String]) = {
     val extracted = Project.extract(state)
-    val (next, inputs) = extracted.runTask(extracted.currentRef / sliceInputs, state)
-    SbtSlicePicker.openPicker(inputs, query = args.mkString(" ").trim, options = SliceOptions.default) match {
-      case Left(error) => throw error // scalafix:ok DisableSyntax.throw
-      case Right(_)    => next
-    }
+    val (next, arguments) = extracted.runTask(extracted.currentRef / sliceArguments, state)
+
+    (next, arguments :+ SbtSliceRequest.renderQuery(query.mkString(" ").trim))
   }
 
   private val sliceScope = ScopeFilter(
-    inDependencies(ThisProject, transitive = true, includeRoot = true) ||
-      inAggregates(ThisProject, transitive = true, includeRoot = true)
+    projects = inDependencies(ref = ThisProject, transitive = true, includeRoot = true) ||
+      inAggregates(ref = ThisProject, transitive = true, includeRoot = true)
   )
 
-  private def buildSliceInputsTask: Def.Initialize[Task[SliceInputs]] = Def.task {
-    Def.uncached {
-      val projects = thisProject.all(sliceScope).value.map(_.id).zip(semanticdbEnabled.all(sliceScope).value)
-      SbtSliceInputs.findProjectsMissingSemanticdb(projects).foreach(error => sys.error(error))
-
-      val _ = (Compile / compile).all(sliceScope).value
-      val modules = libraryDependencies.all(sliceScope).value.flatten
-      val platform = SbtSliceInputs.detectPlatform(modules)
-      SbtSliceInputs.buildSliceInputs(
-        sourceRoot = (ThisBuild / baseDirectory).value.toPath,
-        semanticdbDirs = (Compile / semanticdbTargetRoot).all(sliceScope).value.map(_.toPath).toVector,
-        sourceDirs = ((Compile / unmanagedSourceDirectories).all(sliceScope).value.flatten ++
-          (Compile / managedSourceDirectories).all(sliceScope).value.flatten).map(_.toPath).toVector,
-        out = sliceOut.value,
-        scalaVersion = scalaVersion.value,
-        sbtVersion = (pluginCrossBuild / sbtVersion).value,
-        dependencies = SbtSliceInputs.collectDependencies(modules, platform),
-        scalacOptions = (Compile / scalacOptions).all(sliceScope).value.flatten.toVector,
-        platform = platform
-      ) match {
-        case Left(error)   => throw error // scalafix:ok DisableSyntax.throw
-        case Right(inputs) => inputs
-      }
+  private[slicer] def clearSlicesTask: Def.Initialize[Task[Unit]] = Def.task {
+    val log = streams.value.log
+    WrittenSlices.clearWrittenSlices(sliceOut.value) match {
+      case Left(error)     => throw new MessageOnlyException(error) // scalafix:ok DisableSyntax.throw
+      case Right(messages) => messages.foreach(message => log.info(message))
     }
   }
 
+  private[slicer] def buildSliceArgumentsTask: Def.Initialize[Task[Vector[String]]] = Def.task {
+    val projects = thisProject.all(sliceScope).value.map(_.id).zip(semanticdbEnabled.all(sliceScope).value)
+    SbtSliceRequest
+      .findProjectsMissingSemanticdb(projects)
+      .foreach(error => throw new MessageOnlyException(error)) // scalafix:ok DisableSyntax.throw
+
+    val _ = (Compile / compile).all(sliceScope).value
+
+    SbtSliceRequest.renderAsArgs(
+      sourceRoot = (ThisBuild / baseDirectory).value.toPath,
+      out = sliceOut.value,
+      semanticdbDirs = (Compile / semanticdbTargetRoot).all(sliceScope).value.map(_.toPath).toVector,
+      sourceDirs = ((Compile / unmanagedSourceDirectories).all(sliceScope).value.flatten ++
+        (Compile / managedSourceDirectories).all(sliceScope).value.flatten).map(_.toPath).toVector,
+      scalaVersion = scalaVersion.value,
+      sbtVersion = (pluginCrossBuild / sbtVersion).value,
+      modules = libraryDependencies.all(sliceScope).value.flatten,
+      scalacOptions = (Compile / scalacOptions).all(sliceScope).value.flatten.toVector
+    )
+  }
 }

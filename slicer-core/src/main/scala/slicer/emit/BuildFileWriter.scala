@@ -19,6 +19,7 @@ package slicer.emit
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
+import slicer.compat.SbtVersionRules
 import slicer.model.{BuildTool, Dependency, DependencyScope, Platform}
 
 private[emit] object BuildFileWriter {
@@ -146,10 +147,10 @@ private[emit] object BuildFileWriter {
     if (settings.dependencies.isEmpty) ""
     else
       settings.dependencies
-        .map(dependency => indent + dependency.renderSbtSyntax(settings.platform, platformAppliedBySbt(sbtVersion)))
+        .map(dependency =>
+          indent + dependency.renderSbtSyntax(settings.platform, SbtVersionRules.appliesPlatformPerProject(sbtVersion))
+        )
         .mkString("libraryDependencies ++= Seq(\n", ",\n", "\n" + indent.dropRight(2) + ")")
-
-  def platformAppliedBySbt(sbtVersion: String): Boolean = !sbtVersion.startsWith("1.")
 
   private def renderSbtScalacOptions(scalacOptions: Vector[String], indent: String): String =
     if (scalacOptions.isEmpty) ""

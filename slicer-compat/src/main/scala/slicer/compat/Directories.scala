@@ -14,39 +14,39 @@
  * limitations under the License.
  */
 
-package slicer.util
+package slicer.compat
 
 import java.io.IOException
 import java.nio.file.attribute.BasicFileAttributes
-import java.nio.file.{FileVisitResult, Files as JFiles, Path, SimpleFileVisitor}
+import java.nio.file.{FileVisitResult, Files, Path, SimpleFileVisitor}
 
-import scala.jdk.CollectionConverters.*
-import scala.util.Using
-
-private[slicer] object Files {
+private[slicer] object Directories {
 
   def listChildDirectories(directory: Path): Vector[Path] =
-    if (!JFiles.isDirectory(directory)) Vector.empty
-    else
-      Using.resource(JFiles.list(directory))(
-        _.iterator().asScala.filter(JFiles.isDirectory(_)).toVector.sortBy(_.toString)
-      )
+    if (!Files.isDirectory(directory)) Vector.empty
+    else {
+      val children = Files.list(directory)
+      try children.toArray(size => new Array[Path](size)).toVector.filter(Files.isDirectory(_)).sortBy(_.toString)
+      finally children.close()
+    }
 
   private val deleteWhileWalking: SimpleFileVisitor[Path] = new SimpleFileVisitor[Path] {
 
     override def visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult = {
-      JFiles.deleteIfExists(file): Unit
+      val _ = Files.deleteIfExists(file)
       FileVisitResult.CONTINUE
     }
 
     override def visitFileFailed(file: Path, failure: IOException): FileVisitResult = FileVisitResult.CONTINUE
 
     override def postVisitDirectory(directory: Path, failure: IOException): FileVisitResult = {
-      JFiles.deleteIfExists(directory): Unit
+      val _ = Files.deleteIfExists(directory)
       FileVisitResult.CONTINUE
     }
   }
 
   def deleteRecursively(directory: Path): Unit =
-    if (JFiles.exists(directory)) JFiles.walkFileTree(directory, deleteWhileWalking): Unit
+    if (Files.exists(directory)) {
+      val _ = Files.walkFileTree(directory, deleteWhileWalking)
+    }
 }

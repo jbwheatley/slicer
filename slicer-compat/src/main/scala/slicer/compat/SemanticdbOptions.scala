@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
-package slicer.harness
+package slicer.compat
 
-import java.nio.file.{Files, Path}
+private[slicer] object SemanticdbOptions {
 
-import slicer.compat.Directories
+  val synthetics: String = "-P:semanticdb:synthetics:on"
 
-object Workspace {
-
-  def create(prefix: String): Path = Files.createTempDirectory(prefix)
-
-  def delete(directory: Path): Unit = Directories.deleteRecursively(directory)
+  def optionsForScalaVersion(version: String): Vector[String] =
+    if (version.startsWith("2.13")) Vector(synthetics) else Vector.empty
 }

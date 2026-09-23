@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
-package slicer.harness
+package slicer.sbt
 
-import java.nio.file.{Files, Path}
+import cats.Eq
 
-import slicer.compat.Directories
+private[slicer] sealed trait DetectedPlatform
 
-object Workspace {
+private[slicer] object DetectedPlatform {
 
-  def create(prefix: String): Path = Files.createTempDirectory(prefix)
+  case object Jvm extends DetectedPlatform
 
-  def delete(directory: Path): Unit = Directories.deleteRecursively(directory)
+  final case class ScalaJs(version: String) extends DetectedPlatform
+
+  final case class ScalaNative(version: String) extends DetectedPlatform
+
+  implicit val eq: Eq[DetectedPlatform] = Eq.fromUniversalEquals
 }

@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-package slicer.harness
+package slicer.compat
 
-import java.nio.file.{Files, Path}
+private[slicer] object ForkedPickerLaunch {
 
-import slicer.compat.Directories
+  val mainClass: String = "slicer.tui.ForkedSlicePicker"
 
-object Workspace {
-
-  def create(prefix: String): Path = Files.createTempDirectory(prefix)
-
-  def delete(directory: Path): Unit = Directories.deleteRecursively(directory)
+  val jvmOptions: Vector[String] = Vector("-Xss4m")
 }

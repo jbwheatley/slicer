@@ -30,15 +30,15 @@ private[slicer] object SliceInputs {
       semanticdbDirs: Vector[Path],
       sourceDirs: Vector[Path],
       out: Path,
-      tool: BuildTool,
-      compileFirstAdvice: String
+      tool: BuildTool
   ): Either[SliceFailure, SliceInputs] =
-    if (semanticdbDirs.isEmpty) Left(SliceFailure(s"slice found no SemanticDB output; $compileFirstAdvice"))
+    if (semanticdbDirs.isEmpty) Left(SliceFailure(s"slice found no SemanticDB output; ${tool.compileFirstAdvice}"))
     else {
       val index =
         Index.build(sourceRoot, semanticdbDirs, sourceDirs, ScalaVersionRules.rulesForScalaVersion(tool.scalaVersion))
 
-      if (index.defs.isEmpty) Left(SliceFailure(s"slice found no definitions under $sourceRoot; $compileFirstAdvice"))
+      if (index.defs.isEmpty)
+        Left(SliceFailure(s"slice found no definitions under $sourceRoot; ${tool.compileFirstAdvice}"))
       else Right(SliceInputs(index = index, sourceRoot = sourceRoot, out = out, tool = tool))
     }
 }

@@ -21,6 +21,7 @@ import java.nio.file.Path
 import scala.meta.*
 import scala.meta.internal.semanticdb
 
+import slicer.compat.SemanticdbOptions
 import slicer.model.Symbol
 
 import cats.syntax.eq.*
@@ -30,8 +31,6 @@ private[slicer] sealed trait ScalaVersionRules {
   def name: String
 
   def dialects: Vector[Dialect]
-
-  def semanticdbOptions: Vector[String]
 
   def collectConversions(tree: Tree, symbolAtStart: Map[Int, Symbol]): Vector[Symbol]
 
@@ -59,8 +58,6 @@ private[slicer] object ScalaVersionRules {
     override val dialects: Vector[Dialect] =
       Vector(scala.meta.dialects.Scala213, scala.meta.dialects.Scala213Source3)
 
-    override val semanticdbOptions: Vector[String] = Vector("-P:semanticdb:synthetics:on")
-
     override def collectConversions(tree: Tree, symbolAtStart: Map[Int, Symbol]): Vector[Symbol] =
       collectImplicitConversions(tree, symbolAtStart)
 
@@ -68,7 +65,7 @@ private[slicer] object ScalaVersionRules {
       if (docs.nonEmpty && docs.forall(_.synthetics.isEmpty))
         Some(
           "SemanticDB carries no synthetics, so implicit arguments, conversions and for-comprehensions " +
-            "are invisible to the slicer. Compile with -P:semanticdb:synthetics:on."
+            s"are invisible to the slicer. Compile with ${SemanticdbOptions.synthetics}."
         )
       else None
   }
@@ -78,8 +75,6 @@ private[slicer] object ScalaVersionRules {
     override val name: String = "Scala 3"
 
     override val dialects: Vector[Dialect] = Vector(scala.meta.dialects.Scala3)
-
-    override val semanticdbOptions: Vector[String] = Vector.empty
 
     private def isConversion(tpe: Type): Boolean = tpe match {
       case Type.Apply.After_4_6_0(Type.Name("Conversion"), _)                 => true

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package slicer.emit
+package slicer.compat
 
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.nio.file.{Files, Path}

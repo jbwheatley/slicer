@@ -16,9 +16,8 @@
 
 package slicer.mill
 
-import slicer.analysis.ScalaVersionRules
-import slicer.emit.WrittenSlices
-import slicer.model.{BuildTool, DependencyScope, Platform, SliceOptions}
+import slicer.compat.{ForkedPickerLaunch, SemanticdbOptions, WrittenSlices}
+import slicer.model.*
 
 import mill.*
 import mill.api.JsonFormatters.given
@@ -33,8 +32,7 @@ trait SlicerModule extends ScalaModule {
   def sliceOptions: SliceOptions = SliceOptions.default
 
   override protected def semanticDbEnablePluginScalacOptions: T[Seq[String]] = Task {
-    super.semanticDbEnablePluginScalacOptions() ++
-      ScalaVersionRules.rulesForScalaVersion(scalaVersion()).semanticdbOptions
+    super.semanticDbEnablePluginScalacOptions() ++ SemanticdbOptions.optionsForScalaVersion(scalaVersion())
   }
 
   private def sliceModules: Seq[ScalaModule] = this +: recursiveModuleDeps.collect { case module: ScalaModule =>
@@ -48,8 +46,9 @@ trait SlicerModule extends ScalaModule {
       case Left(error) => Task.fail(error)
       case Right(classPath) =>
         Jvm.callInteractiveProcess(
-          mainClass = MillSlicePicker.mainClass,
+          mainClass = ForkedPickerLaunch.mainClass,
           classPath = classPath.map(os.Path(_)),
+          jvmArgs = ForkedPickerLaunch.jvmOptions,
           mainArgs = arguments,
           cwd = mill.api.BuildCtx.workspaceRoot
         ) match {
@@ -62,7 +61,7 @@ trait SlicerModule extends ScalaModule {
   def sliceClear(): Command[Unit] = Task.Command {
     val out = sliceDestination().toNIO
     WrittenSlices.clearWrittenSlices(out) match {
-      case Left(error)     => Task.fail(error.getMessage + error.cause.fold("")(th => s": ${th.getMessage}"))
+      case Left(error)     => Task.fail(error)
       case Right(messages) => messages.foreach(Task.log.info(_))
     }
   }

@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-package slicer.harness
+package slicer.sbt
 
-import java.nio.file.{Files, Path}
+class OpenSlicePickerSuite extends munit.FunSuite {
 
-import slicer.compat.Directories
+  test("a JDK older than the picker's is refused before the picker is forked") {
+    assert(OpenSlicePicker.findJavaTooOldForPicker("1.8").isDefined)
+    assert(OpenSlicePicker.findJavaTooOldForPicker("11").isDefined)
+  }
 
-object Workspace {
-
-  def create(prefix: String): Path = Files.createTempDirectory(prefix)
-
-  def delete(directory: Path): Unit = Directories.deleteRecursively(directory)
+  test("a JDK the picker runs on is let through") {
+    assertEquals(obtained = OpenSlicePicker.findJavaTooOldForPicker("17"), expected = None)
+    assertEquals(obtained = OpenSlicePicker.findJavaTooOldForPicker("25"), expected = None)
+  }
 }
