@@ -23,7 +23,7 @@ class SbtSliceRequestSuite extends munit.FunSuite {
   private val jvm = DetectedPlatform.Jvm
   private val scalaJs = DetectedPlatform.ScalaJs("1.22.0")
 
-  private val sbt2 = "2.0.6"
+  private val sbt2 = "2.0.8"
   private val sbt1 = "1.12.3"
 
   private val scala3 = "3.8.4"

@@ -25,7 +25,7 @@ object TestProjectNative
       CorpusLayout.sbt,
       BuildTool.Sbt(
         scalaVersion = "3.8.4",
-        sbtVersion = "2.0.6",
+        sbtVersion = "2.0.8",
         dependencies = Corpus.platformDependencies,
         scalacOptions = Vector.empty,
         platform = Platform.ScalaNative("0.5.12")

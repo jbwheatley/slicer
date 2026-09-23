@@ -32,7 +32,7 @@ class SliceInputsSuite extends munit.FunSuite {
   private val sourceDirs: Vector[Path] =
     modules.map(module => corpus.resolve(s"$module/src/main/scala"))
 
-  private val tool = BuildTool.Sbt("3.8.4", "2.0.6", Vector.empty, Vector.empty, Platform.Jvm)
+  private val tool = BuildTool.Sbt("3.8.4", "2.0.8", Vector.empty, Vector.empty, Platform.Jvm)
 
   private def inputsOf(semanticdbDirs: Vector[Path], sourceDirs: Vector[Path]) =
     SliceInputs.build(

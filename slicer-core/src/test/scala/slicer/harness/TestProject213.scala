@@ -25,7 +25,7 @@ object TestProject213
       CorpusLayout.sbt,
       BuildTool.Sbt(
         scalaVersion = "2.13.16",
-        sbtVersion = "2.0.6",
+        sbtVersion = "2.0.8",
         dependencies = Corpus.scala2Dependencies,
         scalacOptions = Corpus.scala2ScalacOptions,
         platform = Platform.Jvm
