@@ -2,12 +2,12 @@ import org.typelevel.scalacoptions.ScalacOptions
 
 val scala3 = "3.8.4"
 
-val scalameta = "4.17.3"
+val scalameta = "4.17.4"
 val cats = "2.13.0"
-val munit = "1.3.5"
+val munit = "1.3.6"
 val catsEffect = "3.7.1"
 val layoutz = "0.8.0"
-val mill = "1.1.8"
+val mill = "1.1.10"
 val sbtTuiLibraries = "0.0.1"
 
 val checkCorpusSlices =
