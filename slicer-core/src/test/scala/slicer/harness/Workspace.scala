@@ -18,11 +18,11 @@ package slicer.harness
 
 import java.nio.file.{Files, Path}
 
-import slicer.compat.Directories
+import slicer.compat.FileUtil
 
 object Workspace {
 
   def create(prefix: String): Path = Files.createTempDirectory(prefix)
 
-  def delete(directory: Path): Unit = Directories.deleteRecursively(directory)
+  def delete(directory: Path): Unit = FileUtil.deleteRecursively(directory)
 }

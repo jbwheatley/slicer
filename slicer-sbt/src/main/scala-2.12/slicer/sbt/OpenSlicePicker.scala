@@ -19,50 +19,39 @@ package slicer.sbt
 import java.io.File
 import java.nio.file.{Path, Paths}
 
-import slicer.compat.ForkedPickerLaunch
+import slicer.compat.ArgumentUtil
 
 import sbt.*
 import sbt.Keys.*
 import sbt.internal.util.MessageOnlyException
-import sbt.librarymanagement.{UnresolvedWarningConfiguration, UpdateConfiguration}
+import sbt.librarymanagement.{DependencyResolution, UnresolvedWarningConfiguration, UpdateConfiguration}
 
 private[slicer] object OpenSlicePicker {
 
-  private val slicePickerClasspath: TaskKey[Vector[Path]] = taskKey[Vector[Path]]("")
-
   private val pickerJavaVersion: Int = 17
 
-  def settings: Seq[Setting[?]] = Seq(
-    slicePickerClasspath := resolvePickerClasspath.value,
-    SlicerPlugin.autoImport.sliceClear := SlicerPlugin.clearSlicesTask.value,
-    SlicerPlugin.sliceArguments := SlicerPlugin.buildSliceArgumentsTask.value
-  )
-
-  private def resolvePickerClasspath: Def.Initialize[Task[Vector[Path]]] = Def.task {
-    val resolution = dependencyResolution.value
-
+  private def resolvePickerClasspath(resolution: DependencyResolution, log: Logger): Vector[Path] =
     resolution.update(
       module = resolution.wrapDependencyInModule(
         ("io.github.jbwheatley" % "slicer-tui_3" % SlicerVersion.version).exclude("org.scala-lang", "scalap")
       ),
       configuration = UpdateConfiguration(),
       uwconfig = UnresolvedWarningConfiguration(),
-      log = streams.value.log
+      log = log
     ) match {
       case Left(unresolved) => failWith(unresolved.resolveException.getMessage)
       case Right(report)    => report.allFiles.distinct.map(jar => jar.toPath)
     }
-  }
 
   def openPicker(state: State, query: Seq[String]): State = {
     findJavaTooOldForPicker(sys.props.getOrElse("java.specification.version", "")).foreach(failWith)
 
     val (withArguments, arguments) = SlicerPlugin.runSliceArguments(state, query)
     val extracted = Project.extract(withArguments)
-    val (next, classPath) = extracted.runTask(extracted.currentRef / slicePickerClasspath, withArguments)
+    val (next, resolution) = extracted.runTask(extracted.currentRef / dependencyResolution, withArguments)
 
     forkPicker(
-      classPath = classPath,
+      classPath = resolvePickerClasspath(resolution = resolution, log = next.log),
       arguments = arguments,
       cwd = extracted.get(extracted.currentRef / baseDirectory).toPath
     )
@@ -84,8 +73,8 @@ private[slicer] object OpenSlicePicker {
   private def forkPicker(classPath: Vector[Path], arguments: Vector[String], cwd: Path): Unit = {
     val java = Paths.get(sys.props.getOrElse("java.home", ""), "bin", "java").toString
     val command =
-      Vector(java) ++ ForkedPickerLaunch.jvmOptions ++
-        Vector("-cp", classPath.mkString(File.pathSeparator), ForkedPickerLaunch.mainClass) ++ arguments
+      Vector(java) ++ ArgumentUtil.pickerJvmOptions ++
+        Vector("-cp", classPath.mkString(File.pathSeparator), ArgumentUtil.pickerMainClass) ++ arguments
 
     new ProcessBuilder(command*)
       .directory(cwd.toFile)

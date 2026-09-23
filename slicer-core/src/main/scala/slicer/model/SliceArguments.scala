@@ -18,7 +18,7 @@ package slicer.model
 
 import java.nio.file.{Path, Paths}
 
-import slicer.compat.SliceArgumentFormat.*
+import slicer.compat.ArgumentUtil.*
 
 import cats.syntax.either.*
 import cats.syntax.traverse.*
@@ -32,15 +32,15 @@ private[slicer] object SliceArguments {
       out: Path,
       semanticdbDirs: Vector[Path],
       sourceDirs: Vector[Path],
-      tool: BuildTool.Mill,
+      tool: BuildTool,
       query: String,
       options: SliceOptions
   ): Vector[String] =
     renderRequestFields(
       sourceRoot = sourceRoot,
       out = out,
-      tool = millTool,
-      toolVersion = tool.millVersion,
+      tool = toToolName(tool),
+      toolVersion = toToolVersion(tool),
       scalaVersion = tool.scalaVersion,
       platform = toPlatformName(tool.platform),
       platformVersion = toPlatformVersion(tool.platform),
@@ -49,10 +49,20 @@ private[slicer] object SliceArguments {
       dependencies = tool.dependencies.map(dependency => dependency.renderAsText),
       scalacOptions = tool.scalacOptions
     ) ++ Vector(
-      renderField(queryKey, query),
+      renderQuery(query),
       renderField(followImplementationsKey, options.followImplementations.toString),
       renderField(keepFieldsKey, options.keepFields.toString)
     )
+
+  private def toToolName(tool: BuildTool): String = tool match {
+    case _: BuildTool.Sbt  => sbtTool
+    case _: BuildTool.Mill => millTool
+  }
+
+  private def toToolVersion(tool: BuildTool): String = tool match {
+    case sbt: BuildTool.Sbt   => sbt.sbtVersion
+    case mill: BuildTool.Mill => mill.millVersion
+  }
 
   def toFields(args: Vector[String]): Either[SliceFailure, Fields] = {
     val arguments = args.filter(_.nonEmpty)

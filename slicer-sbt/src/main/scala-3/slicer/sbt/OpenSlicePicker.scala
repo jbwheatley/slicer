@@ -22,11 +22,6 @@ import sbt.*
 
 private[slicer] object OpenSlicePicker {
 
-  def settings: Seq[Setting[?]] = Seq(
-    SlicerPlugin.autoImport.sliceClear := Def.uncached(SlicerPlugin.clearSlicesTask.value),
-    SlicerPlugin.sliceArguments := Def.uncached(SlicerPlugin.buildSliceArgumentsTask.value)
-  )
-
   def openPicker(state: State, query: Seq[String]): State = {
     val (next, arguments) = SlicerPlugin.runSliceArguments(state, query)
 

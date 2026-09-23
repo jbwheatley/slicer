@@ -12,6 +12,7 @@ val catsEffect = "3.7.1"
 val layoutz = "0.8.0"
 val mill = "1.1.10"
 val sbtTuiLibraries = "0.0.2"
+val sbt2Compat = "0.2.0"
 
 val checkCorpusSlices =
   taskKey[Unit]("Slice every definition of both sbt corpuses and compile each slice standalone")
@@ -125,7 +126,10 @@ lazy val slicerCompat = (projectMatrix in file("slicer-compat"))
   .enablePlugins(AutomateHeaderPlugin)
   .jvmPlatform(scalaVersions = Seq(scala3, scala212))
   .settings(commonSettings)
-  .settings(name := "slicer-compat")
+  .settings(
+    name := "slicer-compat",
+    libraryDependencies += "org.scalameta" %% "munit" % munit % Test
+  )
 
 lazy val slicerCore = (project in file("slicer-core"))
   .enablePlugins(AutomateHeaderPlugin)
@@ -254,6 +258,7 @@ lazy val slicerSbt = (projectMatrix in file("slicer-sbt"))
   .settings(
     name := "slicer-sbt",
     sbtPlugin := true,
+    addSbtPlugin("com.github.sbt" % "sbt2-compat" % sbt2Compat),
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core" % cats,
       "org.scalameta" %% "munit" % munit % Test

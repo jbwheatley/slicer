@@ -23,7 +23,7 @@ Extract compilable vertical slice of Scala codebase from SemanticDB.
 ## Sliced languages
 
 - Slicer reads **Scala 3 and Scala 2.13**, one corpus each. New Scala-2-only logic goes behind `ScalaVersionRules` in own file, never as branch in `Index` or `Reachability`.
-- Scala 2 SemanticDB carries synthetics only under `-P:semanticdb:synthetics:on`; without it implicit arguments and conversions invisible. **Every entry point reads that flag from `slicer.compat.SemanticdbOptions`** — plugin holding own copy silently slices Scala 2 without implicits.
+- Scala 2 SemanticDB carries synthetics only under `-P:semanticdb:synthetics:on`; without it implicit arguments and conversions invisible. **Every entry point reads that flag from `slicer.compat.BuildUtil`** — plugin holding own copy silently slices Scala 2 without implicits.
 - **Scala 3 corpus pinned to newest stable Scala 3, never LTS**: corpus is input specimen, so newest syntax has to be in it.
 - **Brace and indentation syntax both input; slice stays in syntax it arrived in.** Only emitter's own syntax written: emptied body, its `:` or `with`, `end` marker outliving its definition. Given emptied of members still needs body; class, trait, object drop theirs.
 - **Macro expansion is call-site fact, so definition side over-approximates**: anything `expandsAtCallSite` keeps every given in owner's scope, and string literal equal to definition's fully qualified name is edge whose target keeps its members — only way `Symbol.requiredModule("a.b.C")` / `c.mirror.staticModule` survive.

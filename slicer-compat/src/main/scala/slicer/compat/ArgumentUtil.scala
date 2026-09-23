@@ -18,7 +18,7 @@ package slicer.compat
 
 import java.nio.file.Path
 
-private[slicer] object SliceArgumentFormat {
+private[slicer] object ArgumentUtil {
 
   val sourceRootKey: String = "source-root"
   val outKey: String = "out"
@@ -52,7 +52,13 @@ private[slicer] object SliceArgumentFormat {
   val providedScope: String = "Provided"
   val pluginScope: String = "Plugin"
 
+  val pickerMainClass: String = "slicer.tui.ForkedSlicePicker"
+
+  val pickerJvmOptions: Vector[String] = Vector("-Xss4m")
+
   def renderField(key: String, value: String): String = s"$key=$value"
+
+  def renderQuery(query: String): String = renderField(queryKey, query)
 
   def renderRequestFields(
       sourceRoot: Path,

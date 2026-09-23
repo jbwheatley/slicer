@@ -18,6 +18,7 @@ package slicer.sbt
 
 import java.nio.file.{Path, Paths}
 
+import slicer.compat.ArgumentUtil
 import slicer.model.{CrossVersion as SliceCrossVersion, Platform as SlicePlatform, *}
 
 import sbt.*
@@ -50,11 +51,11 @@ class SbtSliceRequestReadBackSuite extends munit.FunSuite {
 
   test("the arguments the plugin renders read back as the sbt build they describe") {
     assertEquals(
-      SliceArguments.readBuildTool(fieldsOf(render("2.0.6"))),
+      SliceArguments.readBuildTool(fieldsOf(render("2.0.8"))),
       Right(
         BuildTool.Sbt(
           scalaVersion = "3.8.4",
-          sbtVersion = "2.0.6",
+          sbtVersion = "2.0.8",
           dependencies = Vector(
             Dependency("com.lihaoyi", "sourcecode", "0.4.2", SliceCrossVersion.Binary, DependencyScope.Provided, true),
             Dependency(
@@ -83,7 +84,7 @@ class SbtSliceRequestReadBackSuite extends munit.FunSuite {
   }
 
   test("the query the slice command names is the one the picker opens on, with the default options") {
-    val fields = fieldsOf(render("1.12.3") :+ SbtSliceRequest.renderQuery("spec.external.CallsLibrary"))
+    val fields = fieldsOf(render("1.12.3") :+ ArgumentUtil.renderQuery("spec.external.CallsLibrary"))
 
     assertEquals(SliceArguments.readQuery(fields), "spec.external.CallsLibrary")
     assertEquals(SliceArguments.readOptions(fields), Right(SliceOptions.default))

@@ -18,8 +18,8 @@ package slicer.sbt
 
 import java.nio.file.Path
 
-import slicer.compat.SliceArgumentFormat.*
-import slicer.compat.{PlatformToken, SbtVersionRules}
+import slicer.compat.ArgumentUtil.*
+import slicer.compat.BuildUtil
 
 import cats.syntax.eq.*
 import sbt.librarymanagement.{CrossVersion, ModuleID}
@@ -57,8 +57,6 @@ private[slicer] object SbtSliceRequest {
       scalacOptions = scalacOptions
     )
   }
-
-  def renderQuery(query: String): String = renderField(queryKey, query)
 
   private def toPlatformName(platform: DetectedPlatform): String = platform match {
     case DetectedPlatform.Jvm            => jvmPlatform
@@ -111,7 +109,7 @@ private[slicer] object SbtSliceRequest {
 
   private def resolvesOnPlatform(module: ModuleID, platform: DetectedPlatform, sbtVersion: String): Boolean =
     toPlatformPrefix(module).nonEmpty ||
-      (SbtVersionRules.appliesPlatformPerProject(sbtVersion) &&
+      (BuildUtil.appliesPlatformPerProject(sbtVersion) &&
         platform =!= DetectedPlatform.Jvm &&
         crossesScalaVersion(module) &&
         !isCompilerPlugin(module))
@@ -147,14 +145,14 @@ private[slicer] object SbtSliceRequest {
       )
 
   private def appendPlatformSuffix(module: ModuleID, platform: DetectedPlatform, sbtVersion: String): String =
-    if (SbtVersionRules.appliesPlatformPerProject(sbtVersion) && !isCompilerPlugin(module))
+    if (BuildUtil.appliesPlatformPerProject(sbtVersion) && !isCompilerPlugin(module))
       toPlatformToken(platform).fold(module.name)(token => s"${module.name}_$token")
     else module.name
 
   private def toPlatformToken(platform: DetectedPlatform): Option[String] = platform match {
     case DetectedPlatform.Jvm                  => None
-    case DetectedPlatform.ScalaJs(version)     => Some(PlatformToken.renderScalaJsToken(version))
-    case DetectedPlatform.ScalaNative(version) => Some(PlatformToken.renderScalaNativeToken(version))
+    case DetectedPlatform.ScalaJs(version)     => Some(BuildUtil.renderScalaJsToken(version))
+    case DetectedPlatform.ScalaNative(version) => Some(BuildUtil.renderScalaNativeToken(version))
   }
 
   private def toCrossVersionToken(module: ModuleID): String = module.crossVersion match {

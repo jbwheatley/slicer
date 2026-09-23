@@ -16,7 +16,12 @@
 
 package slicer.compat
 
-private[slicer] object SbtVersionRules {
+class BuildUtilSuite extends munit.FunSuite {
 
-  def appliesPlatformPerProject(sbtVersion: String): Boolean = !sbtVersion.startsWith("1.")
+  test("a platform version drops the patch, and the minor too once the major version reached one") {
+    assertEquals(obtained = BuildUtil.toPlatformBinaryVersion("1.19.0"), expected = "1")
+    assertEquals(obtained = BuildUtil.toPlatformBinaryVersion("0.5.8"), expected = "0.5")
+    assertEquals(obtained = BuildUtil.toPlatformBinaryVersion("0.4.17"), expected = "0.4")
+    assertEquals(obtained = BuildUtil.toPlatformBinaryVersion("2"), expected = "2")
+  }
 }

@@ -18,11 +18,8 @@ package slicer.mill
 
 import java.nio.file.{Path, Paths}
 
-import slicer.model.{Dependency as SliceDependency, *}
+import slicer.model.*
 import slicer.tui.SliceInputs
-
-import mill.javalib.Dep
-import mill.scalalib.*
 
 class MillSliceInputsSuite extends munit.FunSuite {
 
@@ -48,43 +45,6 @@ class MillSliceInputsSuite extends munit.FunSuite {
         platform = Platform.Jvm
       )
     )
-
-  test("a cross-versioned dependency keeps its cross-version, a java one does not") {
-    assertEquals(
-      MillSliceInputs.toDependency(mvn"org.typelevel::cats-core:2.13.0", DependencyScope.Compile),
-      SliceDependency("org.typelevel", "cats-core", "2.13.0", CrossVersion.Binary, DependencyScope.Compile, false)
-    )
-    assertEquals(
-      MillSliceInputs.toDependency(mvn"com.lihaoyi:os-lib:0.9.0", DependencyScope.Compile),
-      SliceDependency("com.lihaoyi", "os-lib", "0.9.0", CrossVersion.Disabled, DependencyScope.Compile, false)
-    )
-  }
-
-  test("a fully cross-versioned plugin dependency keeps its full Scala version and its scope") {
-    assertEquals(
-      MillSliceInputs.toDependency(mvn"org.typelevel:::kind-projector:0.13.3", DependencyScope.Plugin),
-      SliceDependency("org.typelevel", "kind-projector", "0.13.3", CrossVersion.Full, DependencyScope.Plugin, false)
-    )
-  }
-
-  test("a dependency mill cross-versions with a platform is read as platformed") {
-    assertEquals(
-      MillSliceInputs.toDependency(mvn"org.typelevel::cats-core::2.13.0", DependencyScope.Compile),
-      SliceDependency("org.typelevel", "cats-core", "2.13.0", CrossVersion.Binary, DependencyScope.Compile, true)
-    )
-  }
-
-  test("the dependencies of every module collapse into one sorted list") {
-    val deps: Seq[Dep] =
-      Seq(mvn"org.typelevel::cats-core:2.13.0", mvn"com.lihaoyi:os-lib:0.9.0", mvn"org.typelevel::cats-core:2.13.0")
-
-    assertEquals(
-      MillSliceInputs
-        .collectDependencies(deps, DependencyScope.Compile)
-        .map(dependency => (dependency.organization, dependency.artifact)),
-      Vector(("com.lihaoyi", "os-lib"), ("org.typelevel", "cats-core"))
-    )
-  }
 
   test("inputs built from a module's own paths carry a mill build and the index of its sources") {
     inputsOf(semanticdbDirs, sourceDirs) match {

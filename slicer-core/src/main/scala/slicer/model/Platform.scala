@@ -16,7 +16,7 @@
 
 package slicer.model
 
-import slicer.compat.PlatformToken
+import slicer.compat.BuildUtil
 
 import cats.Eq
 
@@ -36,11 +36,11 @@ object Platform {
   }
 
   final case class ScalaJs(version: String) extends Platform {
-    override def token: String = PlatformToken.renderScalaJsToken(version)
+    override def token: String = BuildUtil.renderScalaJsToken(version)
   }
 
   final case class ScalaNative(version: String) extends Platform {
-    override def token: String = PlatformToken.renderScalaNativeToken(version)
+    override def token: String = BuildUtil.renderScalaNativeToken(version)
   }
 
   given Eq[Platform] = Eq.fromUniversalEquals

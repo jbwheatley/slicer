@@ -19,7 +19,7 @@ package slicer.emit
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
-import slicer.compat.SbtVersionRules
+import slicer.compat.BuildUtil
 import slicer.model.{BuildTool, Dependency, DependencyScope, Platform}
 
 private[emit] object BuildFileWriter {
@@ -148,7 +148,7 @@ private[emit] object BuildFileWriter {
     else
       settings.dependencies
         .map(dependency =>
-          indent + dependency.renderSbtSyntax(settings.platform, SbtVersionRules.appliesPlatformPerProject(sbtVersion))
+          indent + dependency.renderSbtSyntax(settings.platform, BuildUtil.appliesPlatformPerProject(sbtVersion))
         )
         .mkString("libraryDependencies ++= Seq(\n", ",\n", "\n" + indent.dropRight(2) + ")")
 

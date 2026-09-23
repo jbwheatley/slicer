@@ -16,13 +16,20 @@
 
 package slicer.compat
 
-private[slicer] object PlatformToken {
+private[slicer] object BuildUtil {
 
-  def renderScalaJsToken(version: String): String = "sjs" + toBinaryVersion(version)
+  val semanticdbSynthetics: String = "-P:semanticdb:synthetics:on"
 
-  def renderScalaNativeToken(version: String): String = "native" + toBinaryVersion(version)
+  def semanticdbOptionsForScalaVersion(version: String): Vector[String] =
+    if (version.startsWith("2.13")) Vector(semanticdbSynthetics) else Vector.empty
 
-  def toBinaryVersion(version: String): String =
+  def appliesPlatformPerProject(sbtVersion: String): Boolean = !sbtVersion.startsWith("1.")
+
+  def renderScalaJsToken(version: String): String = "sjs" + toPlatformBinaryVersion(version)
+
+  def renderScalaNativeToken(version: String): String = "native" + toPlatformBinaryVersion(version)
+
+  def toPlatformBinaryVersion(version: String): String =
     version.split('.').toVector match {
       case "0" +: minor +: _ => s"0.$minor"
       case major +: _        => major

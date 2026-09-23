@@ -18,7 +18,9 @@ package slicer.sbt
 
 import java.nio.file.Path
 
-import slicer.compat.{SemanticdbOptions, WrittenSlices}
+import scala.annotation.nowarn
+
+import slicer.compat.{ArgumentUtil, BuildUtil, FileUtil}
 
 import sbt.Keys.*
 import sbt.internal.util.MessageOnlyException
@@ -39,10 +41,17 @@ object SlicerPlugin extends AutoPlugin {
 
   private def sliceOut: Def.Initialize[Path] = Def.setting((target.value / "slice").toPath)
 
-  override def projectSettings: Seq[Setting[?]] = OpenSlicePicker.settings ++ Seq(
-    semanticdbEnabled := true,
-    semanticdbOptions ++= SemanticdbOptions.optionsForScalaVersion(scalaVersion.value)
-  )
+  @nowarn("msg=unused import")
+  override def projectSettings: Seq[Setting[?]] = {
+    import sbtcompat.PluginCompat.*
+
+    Seq(
+      semanticdbEnabled := true,
+      semanticdbOptions ++= BuildUtil.semanticdbOptionsForScalaVersion(scalaVersion.value),
+      autoImport.sliceClear := Def.uncached(clearSlicesTask.value),
+      sliceArguments := Def.uncached(buildSliceArgumentsTask.value)
+    )
+  }
 
   override def globalSettings: Seq[Setting[?]] = Seq(commands += openSlicePicker)
 
@@ -54,7 +63,7 @@ object SlicerPlugin extends AutoPlugin {
     val extracted = Project.extract(state)
     val (next, arguments) = extracted.runTask(extracted.currentRef / sliceArguments, state)
 
-    (next, arguments :+ SbtSliceRequest.renderQuery(query.mkString(" ").trim))
+    (next, arguments :+ ArgumentUtil.renderQuery(query.mkString(" ").trim))
   }
 
   private val sliceScope = ScopeFilter(
@@ -62,15 +71,15 @@ object SlicerPlugin extends AutoPlugin {
       inAggregates(ref = ThisProject, transitive = true, includeRoot = true)
   )
 
-  private[slicer] def clearSlicesTask: Def.Initialize[Task[Unit]] = Def.task {
+  private def clearSlicesTask: Def.Initialize[Task[Unit]] = Def.task {
     val log = streams.value.log
-    WrittenSlices.clearWrittenSlices(sliceOut.value) match {
+    FileUtil.clearWrittenSlices(sliceOut.value) match {
       case Left(error)     => throw new MessageOnlyException(error) // scalafix:ok DisableSyntax.throw
       case Right(messages) => messages.foreach(message => log.info(message))
     }
   }
 
-  private[slicer] def buildSliceArgumentsTask: Def.Initialize[Task[Vector[String]]] = Def.task {
+  private def buildSliceArgumentsTask: Def.Initialize[Task[Vector[String]]] = Def.task {
     val projects = thisProject.all(sliceScope).value.map(_.id).zip(semanticdbEnabled.all(sliceScope).value)
     SbtSliceRequest
       .findProjectsMissingSemanticdb(projects)

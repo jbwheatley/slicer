@@ -18,7 +18,7 @@ package slicer.model
 
 import java.util.regex.Pattern
 
-import slicer.compat.SliceArgumentFormat.*
+import slicer.compat.ArgumentUtil.*
 
 import cats.syntax.eq.*
 

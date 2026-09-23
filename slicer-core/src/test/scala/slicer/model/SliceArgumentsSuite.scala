@@ -44,7 +44,7 @@ class SliceArgumentsSuite extends munit.FunSuite {
   private val options = SliceOptions(followImplementations = false, keepFields = true)
 
   private def render(
-      tool: BuildTool.Mill = tool,
+      tool: BuildTool = tool,
       query: String = query,
       options: SliceOptions = options
   ): Vector[String] =
@@ -72,6 +72,18 @@ class SliceArgumentsSuite extends munit.FunSuite {
 
   test("the build tool a request carries survives being handed over as arguments") {
     assertEquals(SliceArguments.readBuildTool(fieldsOf(render())), Right(tool))
+  }
+
+  test("an sbt build a request carries survives being handed over as arguments") {
+    val sbt = BuildTool.Sbt(
+      scalaVersion = tool.scalaVersion,
+      sbtVersion = "2.0.8",
+      dependencies = tool.dependencies,
+      scalacOptions = tool.scalacOptions,
+      platform = tool.platform
+    )
+
+    assertEquals(SliceArguments.readBuildTool(fieldsOf(render(tool = sbt))), Right(sbt))
   }
 
   test("a request naming a build tool nothing emits is reported rather than guessed at") {

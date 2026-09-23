@@ -16,8 +16,10 @@
 
 package slicer.util
 
+import slicer.compat.FileUtil
+
 private[slicer] object ConsolePrint {
   extension (str: String) {
-    def toConsoleMessage: String = "[slice] " + str
+    def toConsoleMessage: String = FileUtil.toConsoleMessage(str)
   }
 }

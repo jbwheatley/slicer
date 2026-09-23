@@ -20,7 +20,7 @@ import slicer.model.*
 
 import mill.javalib.Dep
 
-private[slicer] object MillSliceInputs {
+private[slicer] object MillDependencies {
 
   def toDependency(dep: Dep, scope: DependencyScope): Dependency =
     Dependency(

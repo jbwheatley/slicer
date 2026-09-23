@@ -20,7 +20,11 @@ import java.io.IOException
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.{FileVisitResult, Files, Path, SimpleFileVisitor}
 
-private[slicer] object Directories {
+import scala.util.{Failure, Success, Try}
+
+private[slicer] object FileUtil {
+
+  def toConsoleMessage(message: String): String = "[slice] " + message
 
   def listChildDirectories(directory: Path): Vector[Path] =
     if (!Files.isDirectory(directory)) Vector.empty
@@ -48,5 +52,21 @@ private[slicer] object Directories {
   def deleteRecursively(directory: Path): Unit =
     if (Files.exists(directory)) {
       val _ = Files.walkFileTree(directory, deleteWhileWalking)
+    }
+
+  def clearWrittenSlices(out: Path): Either[String, Vector[String]] =
+    Try(listChildDirectories(out)) match {
+      case Failure(error) => Left(s"could not list $out: ${error.getMessage}")
+      case Success(slices) =>
+        val failed = slices.flatMap(slice => Try(deleteRecursively(slice)).failed.toOption.map(slice -> _))
+        failed.headOption match {
+          case Some((_, error)) =>
+            Left(
+              toConsoleMessage(s"failed to remove slices at ${failed.map(_._1).mkString(", ")}: ${error.getMessage}")
+            )
+          case None =>
+            if (slices.isEmpty) Right(Vector(toConsoleMessage(s"no slices to remove under $out")))
+            else Right(slices.map(slice => toConsoleMessage(s"removed $slice")))
+        }
     }
 }

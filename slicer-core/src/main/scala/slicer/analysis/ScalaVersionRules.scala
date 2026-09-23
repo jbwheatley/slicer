@@ -19,7 +19,7 @@ package slicer.analysis
 import scala.meta.*
 import scala.meta.internal.semanticdb
 
-import slicer.compat.SemanticdbOptions
+import slicer.compat.BuildUtil
 import slicer.model.{SliceFailure, Symbol}
 
 import cats.syntax.eq.*
@@ -56,7 +56,7 @@ private[slicer] object ScalaVersionRules {
       if (docs.nonEmpty && docs.forall(_.synthetics.isEmpty))
         Some(
           "SemanticDB carries no synthetics, so implicit arguments, conversions and for-comprehensions " +
-            s"are invisible to the slicer. Compile with ${SemanticdbOptions.synthetics}."
+            s"are invisible to the slicer. Compile with ${BuildUtil.semanticdbSynthetics}."
         )
       else None
   }
